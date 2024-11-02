@@ -7,6 +7,7 @@
 #include <QJsonObject>
 #include <memory>
 #include "expression.h"
+#include <vector>
 
 struct Conversion {
     QString name;
@@ -19,7 +20,8 @@ class Parameter
 public:
     Parameter();
     Parameter(const QString& name, const QString& id, const QString& description, const QString& units);
-    ~Parameter() = default;
+    ~Parameter();
+    std::vector<std::unique_ptr<Expression>> conversions;
 
     // Используем правило пяти
     Parameter(const Parameter& other);
@@ -46,7 +48,6 @@ public:
     QString address;
     int startBit;
     int bitLength;
-    std::vector<std::unique_ptr<Expression>> conversions;   // Сложные выражения
 
     // Создание из JSON
     static Parameter fromJson(const QJsonObject& json);

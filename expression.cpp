@@ -25,7 +25,9 @@ std::unique_ptr<Expression::Node> Expression::parseExpression(const QString& exp
         if (op != '+' && op != '-') break;
         pos++;
         auto right = parseTerm(expr, pos);
-        result = std::make_unique<BinaryOpNode>(op, std::move(result), std::move(right));
+        BinaryOpNode::Operator binOp = (op == '+') ?
+                                           BinaryOpNode::Operator::Add : BinaryOpNode::Operator::Subtract;
+        result = std::make_unique<BinaryOpNode>(binOp, std::move(result), std::move(right));
     }
     return result;
 }
@@ -38,7 +40,9 @@ std::unique_ptr<Expression::Node> Expression::parseTerm(const QString& expr, int
         if (op != '*' && op != '/') break;
         pos++;
         auto right = parseFactor(expr, pos);
-        result = std::make_unique<BinaryOpNode>(op, std::move(result), std::move(right));
+        BinaryOpNode::Operator binOp = (op == '*') ?
+                                           BinaryOpNode::Operator::Multiply : BinaryOpNode::Operator::Divide;
+        result = std::make_unique<BinaryOpNode>(binOp, std::move(result), std::move(right));
     }
     return result;
 }
@@ -46,6 +50,9 @@ std::unique_ptr<Expression::Node> Expression::parseTerm(const QString& expr, int
 std::unique_ptr<Expression::Node> Expression::parseFactor(const QString& expr, int& pos)
 {
     if (pos >= expr.length()) throw std::runtime_error("Unexpected end of expression");
+
+    // Пропускаем пробелы
+    while (pos < expr.length() && expr[pos].isSpace()) pos++;
 
     if (expr[pos] == '(') {
         pos++;
@@ -68,5 +75,8 @@ std::unique_ptr<Expression::Node> Expression::parseFactor(const QString& expr, i
         pos++;
     }
     if (numStr.isEmpty()) throw std::runtime_error("Invalid expression");
-    return std::make_unique<NumberNode>(numStr.toDouble());
+    bool ok;
+    double value = numStr.toDouble(&ok);
+    if (!ok) throw std::runtime_error("Invalid number format");
+    return std::make_unique<NumberNode>(value);
 }

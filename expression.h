@@ -4,6 +4,7 @@
 #include <QString>
 #include <memory>
 #include <vector>
+#include <stdexcept>
 
 class Expression {
 public:
@@ -13,8 +14,13 @@ public:
         virtual ~Node() = default;
         virtual double evaluate(const std::vector<double>& values) const = 0;
     };
-    std::unique_ptr<Expression> clone() const {
-        return std::make_unique<Expression>(
+
+    Expression() = default;
+    Expression(const QString& expression, const QString& units,
+               const QString& format, double min, double max, double step);
+
+    Expression clone() const {
+        return Expression(
             getExpression(),
             getUnits(),
             getFormat(),
@@ -23,10 +29,6 @@ public:
             getStep()
             );
     }
-
-    Expression() = default;
-    Expression(const QString& expression, const QString& units,
-               const QString& format, double min, double max, double step);
 
     double evaluate(const std::vector<double>& values) const;
     QString getExpression() const { return expression; }
@@ -55,7 +57,7 @@ private:
 class NumberNode : public Expression::Node {
 public:
     NumberNode(double value) : value(value) {}
-    double evaluate(const std::vector<double>& values) const override { return value; }
+    double evaluate(const std::vector<double>&) const override { return value; }
 private:
     double value;
 };
@@ -63,26 +65,43 @@ private:
 class VariableNode : public Expression::Node {
 public:
     VariableNode(int index) : index(index) {}
-    double evaluate(const std::vector<double>& values) const override { return values[index]; }
+    double evaluate(const std::vector<double>& values) const override {
+        if (index >= static_cast<int>(values.size()))
+            throw std::out_of_range("Variable index out of range");
+        return values[index];
+    }
 private:
     int index;
 };
 
 class BinaryOpNode : public Expression::Node {
 public:
-    BinaryOpNode(char op, std::unique_ptr<Node> left, std::unique_ptr<Node> right)
+    enum class Operator { Add, Subtract, Multiply, Divide };
+
+    BinaryOpNode(Operator op, std::unique_ptr<Node> left, std::unique_ptr<Node> right)
         : op(op), left(std::move(left)), right(std::move(right)) {}
+
     double evaluate(const std::vector<double>& values) const override {
+        double leftValue = left->evaluate(values);
+        double rightValue = right->evaluate(values);
+
         switch (op) {
-        case '+': return left->evaluate(values) + right->evaluate(values);
-        case '-': return left->evaluate(values) - right->evaluate(values);
-        case '*': return left->evaluate(values) * right->evaluate(values);
-        case '/': return left->evaluate(values) / right->evaluate(values);
-        default: return 0;
+        case Operator::Add:
+            return leftValue + rightValue;
+        case Operator::Subtract:
+            return leftValue - rightValue;
+        case Operator::Multiply:
+            return leftValue * rightValue;
+        case Operator::Divide:
+            if (rightValue == 0) throw std::runtime_error("Division by zero");
+            return leftValue / rightValue;
+        default:
+            throw std::runtime_error("Unknown operator");
         }
     }
+
 private:
-    char op;
+    Operator op;
     std::unique_ptr<Node> left, right;
 };
 

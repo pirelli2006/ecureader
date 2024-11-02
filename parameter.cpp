@@ -1,10 +1,11 @@
-// parameter.cpp
 #include "parameter.h"
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonValue>
 
 Parameter::Parameter() = default;
+
+Parameter::~Parameter() = default;
 
 Parameter::Parameter(const QString& name, const QString& id, const QString& description, const QString& units)
     : m_name(name), m_id(id), m_description(description), m_units(units)
@@ -66,20 +67,18 @@ Parameter::Parameter(const Parameter& other)
     , m_conversions(other.m_conversions)
 {
     for (const auto& expr : other.conversions) {
-        conversions.push_back(expr->clone());
+        conversions.push_back(std::make_unique<Expression>(
+            expr->getExpression(),
+            expr->getUnits(),
+            expr->getFormat(),
+            expr->getMin(),
+            expr->getMax(),
+            expr->getStep()
+            ));
     }
 }
 
-
-
-Parameter::Parameter(Parameter&& other) noexcept
-    : address(std::move(other.address)), startBit(other.startBit), bitLength(other.bitLength),
-    conversions(std::move(other.conversions)),
-    m_name(std::move(other.m_name)), m_id(std::move(other.m_id)),
-    m_description(std::move(other.m_description)), m_units(std::move(other.m_units)),
-    m_conversions(std::move(other.m_conversions))
-{
-}
+Parameter::Parameter(Parameter&& other) noexcept = default;
 
 Parameter& Parameter::operator=(const Parameter& other)
 {
@@ -95,24 +94,17 @@ Parameter& Parameter::operator=(const Parameter& other)
 
         conversions.clear();
         for (const auto& expr : other.conversions) {
-            conversions.push_back(expr->clone());
+            conversions.push_back(std::make_unique<Expression>(
+                expr->getExpression(),
+                expr->getUnits(),
+                expr->getFormat(),
+                expr->getMin(),
+                expr->getMax(),
+                expr->getStep()
+                ));
         }
     }
     return *this;
 }
 
-Parameter& Parameter::operator=(Parameter&& other) noexcept
-{
-    if (this != &other) {
-        address = std::move(other.address);
-        startBit = other.startBit;
-        bitLength = other.bitLength;
-        conversions = std::move(other.conversions);
-        m_name = std::move(other.m_name);
-        m_id = std::move(other.m_id);
-        m_description = std::move(other.m_description);
-        m_units = std::move(other.m_units);
-        m_conversions = std::move(other.m_conversions);
-    }
-    return *this;
-}
+Parameter& Parameter::operator=(Parameter&& other) noexcept = default;
