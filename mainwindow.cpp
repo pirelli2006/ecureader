@@ -9,8 +9,8 @@
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
     , sessionOpened(false)
+    , ui(new Ui::MainWindow)
     , m_readTimer(nullptr)
     , m_j2534(nullptr)
     , m_deviceId(0)

@@ -19,6 +19,7 @@ public:
         double gauge_max = 0;
         double gauge_step = 0;
         QString storagetype;
+        double evaluate(const std::vector<double>& values) const;
     };
 
     struct Parameter {

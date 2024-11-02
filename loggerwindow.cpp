@@ -24,6 +24,10 @@
 #include <QPushButton>
 #include <QStringList>
 #include <QDebug>
+#include "expression.h"
+#include <QDomDocument>
+#include <QDomElement>
+#include "parameter.h"
 
 
 LoggerWindow::LoggerWindow(QWidget *parent) :
@@ -1172,82 +1176,175 @@ void LoggerWindow::setupLoggerDefinitionLoader()
 
 void LoggerWindow::loadLoggerDefinition()
 {
-    QString filePath = QFileDialog::getOpenFileName(this,
-                                                    "Open Logger Definition File",
-                                                    "",
-                                                    "XML Files (*.xml)");
-
-    if (filePath.isEmpty()) {
+    QFile file("logger.xml");
+    if (!file.open(QIODevice::ReadOnly)) {
+        qDebug() << "Failed to open logger definition file";
         return;
     }
 
-    if (m_definitionLoader.loadFromXml(filePath)) {
-        m_parameters = m_definitionLoader.getParameters();
+    QDomDocument doc;
+    if (!doc.setContent(&file)) {
+        file.close();
+        qDebug() << "Failed to parse XML content";
+        return;
+    }
+    file.close();
 
-        // Очищаем существующие данные
-        ui->parametersTree->clear();
+    m_parameters.clear();
 
-        // Настраиваем заголовки колонок
-        ui->parametersTree->setColumnCount(3);
-        QStringList headers;
-        headers << "" << "Parameter" << "Units";
-        ui->parametersTree->setHeaderLabels(headers);
+    QDomElement root = doc.documentElement();
+    QDomElement categoryElement = root.firstChildElement("category");
 
-        // Включаем чекбоксы
-        ui->parametersTree->setSelectionMode(QAbstractItemView::MultiSelection);
-        ui->parametersTree->setSelectionBehavior(QAbstractItemView::SelectRows);
+    while (!categoryElement.isNull()) {
+        QString categoryName = categoryElement.attribute("name");
+        QList<ParameterDefinition>& categoryParams = m_parameters[categoryName];
 
-        // Заполняем дерево параметров
-        for (auto it = m_parameters.constBegin(); it != m_parameters.constEnd(); ++it) {
-            QTreeWidgetItem *categoryItem = new QTreeWidgetItem(ui->parametersTree);
-            categoryItem->setText(0, it.key());
-            categoryItem->setFlags(categoryItem->flags() | Qt::ItemIsTristate | Qt::ItemIsUserCheckable);
-            categoryItem->setCheckState(0, Qt::Unchecked);
+        QDomElement paramElement = categoryElement.firstChildElement("parameter");
+        while (!paramElement.isNull()) {
+            ParameterDefinition param;
+            param.category = categoryName;
+            param.id = paramElement.attribute("id");
+            param.name = paramElement.attribute("name");
+            param.description = paramElement.attribute("description");
+            param.address = paramElement.attribute("address");
+            param.units = paramElement.attribute("units");
+            param.expression = paramElement.attribute("expression");
+            param.format = paramElement.attribute("format");
 
-            for (const ParameterDefinition &param : it.value()) {
-                QTreeWidgetItem *paramItem = new QTreeWidgetItem(categoryItem);
-                paramItem->setFlags(paramItem->flags() | Qt::ItemIsUserCheckable);
-                paramItem->setCheckState(0, Qt::Unchecked);
-                paramItem->setText(1, param.name);
+            // Парсинг min, max, step если они есть
+            bool ok;
+            float minVal = paramElement.attribute("min").toFloat(&ok);
+            if (ok) param.min = minVal;
 
-                // Если у параметра несколько единиц измерения
-                if (param.unitsList.size() > 1) {
-                    // Создаем ComboBox
-                    QComboBox* unitsCombo = new QComboBox();
-                    for (const auto& unitPair : param.unitsList) {
-                        unitsCombo->addItem(unitPair.first, unitPair.second); // first - текст (units), second - формула
-                    }
+            float maxVal = paramElement.attribute("max").toFloat(&ok);
+            if (ok) param.max = maxVal;
 
-                    // Подключаем обработчик изменения выбора
-                    connect(unitsCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                            [this, paramItem](int index) {
-                                QComboBox* combo = qobject_cast<QComboBox*>(sender());
-                                if (combo) {
-                                    QString formula = combo->currentData().toString();
-                                    // Сохраняем выбранную формулу для параметра
-                                    paramItem->setData(2, Qt::UserRole, formula);
-                                }
-                            });
+            float stepVal = paramElement.attribute("step").toFloat(&ok);
+            if (ok) param.step = stepVal;
 
-                    ui->parametersTree->setItemWidget(paramItem, 2, unitsCombo);
-                } else {
-                    // Если единица измерения только одна
-                    paramItem->setText(2, param.units);
-                }
+            // Парсинг списка единиц измерения, если они есть
+            QDomElement unitsElement = paramElement.firstChildElement("units");
+            while (!unitsElement.isNull()) {
+                QString value = unitsElement.attribute("value");
+                QString text = unitsElement.attribute("text");
+                param.unitsList.append(qMakePair(value, text));
+                unitsElement = unitsElement.nextSiblingElement("units");
+            }
 
-                paramItem->setData(0, Qt::UserRole, QVariant::fromValue(param));
+            categoryParams.append(param);
+
+            // Добавляем информацию о параметре в m_parameterValues
+            ParameterInfo paramInfo;
+            paramInfo.name = param.name;
+            paramInfo.units = param.units;
+            paramInfo.formula = param.expression;
+            m_parameterValues[param.id] = paramInfo;
+
+            paramElement = paramElement.nextSiblingElement("parameter");
+        }
+
+        categoryElement = categoryElement.nextSiblingElement("category");
+    }
+
+    updateParametersTree();
+}
+
+void LoggerWindow::updateParametersTree()
+{
+    ui->parametersTree->clear();
+
+    for (auto it = m_parameters.constBegin(); it != m_parameters.constEnd(); ++it) {
+        QTreeWidgetItem* categoryItem = new QTreeWidgetItem(ui->parametersTree);
+        categoryItem->setText(0, it.key());
+
+        const QList<ParameterDefinition>& params = it.value();
+        for (const auto& param : params) {
+            QTreeWidgetItem* paramItem = new QTreeWidgetItem(categoryItem);
+            paramItem->setText(0, param.name);
+            paramItem->setText(1, param.id);
+            paramItem->setText(2, ""); // Значение будет обновляться позже
+            paramItem->setText(3, param.units);
+            paramItem->setText(4, param.description);
+
+            // Сохраняем ParameterDefinition в данных элемента
+            paramItem->setData(0, Qt::UserRole, QVariant::fromValue(param));
+        }
+    }
+
+    ui->parametersTree->expandAll();
+}
+
+void LoggerWindow::processParameterData(const QString& paramId, const QByteArray& data)
+{
+    const ConfigManager::Parameter* param = ConfigManager::instance().getParameter(paramId);
+    if (!param || param->conversions.empty()) {
+        qDebug() << "Parameter not found or has no conversions:" << paramId;
+        return;
+    }
+
+    const ConfigManager::Conversion& conv = param->conversions.front();
+
+    std::vector<double> values;
+    for (char byte : data) {
+        values.push_back(static_cast<unsigned char>(byte));
+    }
+
+    // Предполагаем, что у ConfigManager::Conversion есть метод evaluate
+    double value = conv.evaluate(values);
+
+    QString formattedValue;
+    QString format = conv.format;
+    if (!format.isEmpty()) {
+        if (format.contains('f')) {
+            int precision = format.mid(format.indexOf('.') + 1, 1).toInt();
+            formattedValue = QString::number(value, 'f', precision);
+        } else if (format.contains('d')) {
+            formattedValue = QString::number(static_cast<int>(value));
+        } else {
+            formattedValue = QString::number(value);
+        }
+    } else {
+        formattedValue = QString::number(value);
+    }
+
+    updateParameterValue(param->name, formattedValue, conv.units);
+}
+
+void LoggerWindow::updateParameterValue(const QString& name, const QString& value, const QString& units)
+{
+    // Обновление в дереве параметров
+    QList<QTreeWidgetItem*> items = ui->parametersTree->findItems(name, Qt::MatchExactly | Qt::MatchRecursive, 1);
+    for (QTreeWidgetItem* item : items) {
+        item->setText(2, value);
+        item->setText(3, units);
+    }
+
+    // Обновление виджета параметра
+    if (m_parameterWidgets.contains(name)) {
+        bool ok;
+        double doubleValue = value.toDouble(&ok);
+        if (ok) {
+            m_parameterWidgets[name]->updateValue(doubleValue);
+        } else {
+            m_parameterWidgets[name]->updateValue(value);
+        }
+    }
+
+    // Обновление данных для графика
+    if (m_parameterValues.contains(name)) {
+        bool ok;
+        double doubleValue = value.toDouble(&ok);
+        if (ok) {
+            m_parameterValues[name].history.append(doubleValue);
+            if (m_parameterValues[name].history.size() > MAX_HISTORY_SIZE) {
+                m_parameterValues[name].history.removeFirst();
             }
         }
-
-        ui->parametersTree->expandAll();
-
-        // Устанавливаем размеры колонок по содержимому
-        for(int i = 0; i < ui->parametersTree->columnCount(); ++i) {
-            ui->parametersTree->resizeColumnToContents(i);
-        }
-
-        QMessageBox::information(this, "Success", "Logger definition loaded successfully.");
-    } else {
-        QMessageBox::warning(this, "Error", "Failed to load logger definition.");
     }
+
+    // Отправка сигнала
+    emit parameterUpdated(name, value, units);
+
+    // Обновление графика
+    updatePlot();
 }

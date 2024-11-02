@@ -130,3 +130,13 @@ void ParameterWidget::updateStyle(bool alert)
         setStyleSheet("ParameterWidget { border: 2px solid gray; }");
     }
 }
+
+void ParameterWidget::updateValue(double value)
+{
+    m_valueLabel->setText(QString::number(value, 'f', 2));
+}
+
+void ParameterWidget::updateValue(const QString& value)
+{
+    m_valueLabel->setText(value);
+}

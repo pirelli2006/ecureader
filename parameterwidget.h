@@ -20,6 +20,9 @@ public:
     void setValue(double value);
     bool isEnabled() const { return m_checkBox->isChecked(); }
 
+    void updateValue(double value);
+    void updateValue(const QString& value); // Перегруженная версия
+
 private slots:
     void checkCondition();
     void startBlinking();

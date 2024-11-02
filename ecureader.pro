@@ -1,5 +1,4 @@
-QT += core gui widgets network serialport qml printsupport
-
+QT       += core gui widgets network serialport printsupport xml script qml
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
@@ -8,8 +7,16 @@ CONFIG += c++17
 # In order to do so, uncomment the following line.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
+# Добавляем флаги для поддержки исключений и отладки
+QMAKE_CXXFLAGS += -fexceptions
+CONFIG += debug
+
+# Добавляем директории для поиска заголовочных файлов
+INCLUDEPATH += $$PWD
+
 SOURCES += \
     configmanager.cpp \
+    expression.cpp \
     j2534.cpp \
     loggerdefinitionloader.cpp \
     loggerwindow.cpp \
@@ -24,6 +31,8 @@ SOURCES += \
 
 HEADERS += \
     configmanager.h \
+    expression.h \
+    expressionparser.h \
     j2534.h \
     j2534_tactrix.h \
     loggerdefinitionloader.h \
@@ -41,6 +50,16 @@ HEADERS += \
 FORMS += \
     loggerwindow.ui \
     mainwindow.ui
+
+# Определяем макросы для отладки
+CONFIG(debug, debug|release) {
+    DEFINES += DEBUG
+    DEFINES += QT_DEBUG
+}
+
+CONFIG(release, debug|release) {
+    DEFINES += QT_NO_DEBUG_OUTPUT
+}
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

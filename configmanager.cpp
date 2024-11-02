@@ -114,3 +114,11 @@ const ConfigManager::Parameter* ConfigManager::getParameter(const QString& id) c
 QVector<ConfigManager::Parameter> ConfigManager::getAllParameters() const {
     return m_parameters.values().toVector();
 }
+
+double ConfigManager::Conversion::evaluate(const std::vector<double>& values) const {
+    if (values.empty()) return 0.0;
+
+    // Здесь должна быть логика вычисления на основе expression
+    // Временная реализация
+    return values[0];
+}

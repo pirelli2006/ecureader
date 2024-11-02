@@ -19,6 +19,7 @@
 #include "loggerdefinitionloader.h"
 #include "parameterwidget.h"
 #include "parameterselectiondialog.h"
+#include "expression.h"
 #include <QQueue>
 
 namespace Ui {
@@ -110,6 +111,16 @@ private:
     bool setupScanmaticFilter();
     LoggerDefinitionLoader m_definitionLoader;
     QMap<QString, ParameterInfo> m_parameterValues;
+    void processParameterData(const QString& paramId, const QByteArray& data);
+    void updateParameterValue(const QString& name, const QString& value, const QString& units);
+    void updateParametersTree();
+
+    struct CategoryParameters {
+        QString name;
+        QVector<ParameterDefinition> parameters;
+    };
+    QMap<QString, CategoryParameters> m_categorizedParameters;
+    static constexpr int MAX_HISTORY_SIZE = 1000;
 
     Ui::LoggerWindow *ui; // Указатель на UI
     J2534* m_j2534; // Указатель на объект J2534
