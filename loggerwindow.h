@@ -16,6 +16,7 @@
 #include <QTextEdit>
 #include "qcustomplot.h"
 #include "j2534.h"
+#include "loggerdefinitionloader.h"
 #include "parameterwidget.h"
 #include "parameterselectiondialog.h"
 #include <QQueue>
@@ -66,6 +67,7 @@ private slots:
     void onPreferencesTriggered(); // Обработчик открытия настроек
     void onFileLogButtonClicked(); // Обработчик нажатия кнопки записи в файл
     void updateTimePlot();
+    void loadLoggerDefinition();
 
 private:
     void initializeUI(); // Инициализация UI
@@ -94,7 +96,7 @@ private:
     bool m_sessionActive = false; // Флаг для отслеживания состояния сессии
     QQueue<DiagRequest> m_requestQueue;
     QMap<QString, QString> m_adapterToDllMap;
-    QMap<QString, ParameterInfo> m_parameters;
+    QMap<QString, QList<ParameterDefinition>> m_parameters;
     QVector<QString> m_selectedParameters; // Список выбранных параметров
     QMap<QString, ParameterWidget*> m_parameterWidgets; // Карта виджетов параметров
     QVector<QCPGraph*> m_graphData;
@@ -106,6 +108,8 @@ private:
     void startLogging();
     void stopLogging();
     bool setupScanmaticFilter();
+    LoggerDefinitionLoader m_definitionLoader;
+    QMap<QString, ParameterInfo> m_parameterValues;
 
     Ui::LoggerWindow *ui; // Указатель на UI
     J2534* m_j2534; // Указатель на объект J2534
@@ -116,7 +120,7 @@ private:
     bool m_isLogging; // Флаг, указывающий, идет ли запись
     bool m_sessionOpened; // Флаг, указывающий, открыта ли с ессия
     QTimer* m_readTimer;     // Таймер для чтения данных
-    //QCustomPlot* m_plotWidget;
+    void setupLoggerDefinitionLoader();
 
     // Компоненты для графика
     QCustomPlot* m_plot;

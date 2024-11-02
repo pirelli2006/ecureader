@@ -55,6 +55,8 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
     setupPlot();
     qDebug() << "Plot setup completed";
 
+    setupLoggerDefinitionLoader();
+
     // Настраиваем комбобокс режима отображения
     ui->displayModeComboBox->clear();
     ui->displayModeComboBox->addItem("Widgets");
@@ -493,14 +495,35 @@ void LoggerWindow::processResponse(uint8_t requestedService, const QByteArray& r
             uint8_t pid = response[1];
             QString pidKey = QString("%1").arg(pid, 2, 16, QChar('0')).toUpper();
 
-            if (m_parameters.contains(pidKey)) {
-                const auto& parameter = m_parameters[pidKey];
-                // Применяем формулу из XML к полученным данным
-                double value = calculateValueFromFormula(parameter, response);
-                // Преобразуем double в QString для updateParameter
-                QString valueStr = QString::number(value);
-                // Обновляем значение параметра
-                updateParameter(parameter.name, valueStr, parameter.units);
+            if (m_parameters.contains(pidKey) && !m_parameters[pidKey].isEmpty()) {
+                const ParameterDefinition& param = m_parameters[pidKey].first();
+
+                ParameterInfo tempInfo;
+                tempInfo.name = param.name;
+                tempInfo.units = param.units;
+                tempInfo.formula = param.expression;
+
+                double value = calculateValueFromFormula(tempInfo, response);
+                value = qBound(param.min, static_cast<float>(value), param.max);
+
+                QString valueStr;
+                if (!param.format.isEmpty()) {
+                    if (param.format.contains('f')) {
+                        // Для чисел с плавающей точкой
+                        int precision = param.format.mid(param.format.indexOf('.') + 1, 1).toInt();
+                        valueStr = QString("%1").arg(value, 0, 'f', precision);
+                    } else if (param.format.contains('d')) {
+                        // Для целых чисел
+                        valueStr = QString("%1").arg(static_cast<int>(value));
+                    } else {
+                        // Для других форматов
+                        valueStr = QString("%1").arg(value);
+                    }
+                } else {
+                    valueStr = QString::number(value);
+                }
+
+                updateParameter(param.name, valueStr, param.units);
             }
             updatePlot();
         }
@@ -1024,13 +1047,14 @@ void LoggerWindow::updatePlot()
     // Ограничиваем количество точек
     if (m_timeData.size() > MAX_POINTS) {
         m_timeData.removeFirst();
-        for (auto& param : m_parameters) {
-            param.history.removeFirst();
+        // Обновляем историю для всех параметров
+        for (auto& paramList : m_parameterValues) {
+            paramList.history.removeFirst();
         }
     }
 
     // Обновляем графики для каждого параметра
-    for (auto it = m_parameters.begin(); it != m_parameters.end(); ++it) {
+    for (auto it = m_parameterValues.begin(); it != m_parameterValues.end(); ++it) {
         QString name = it.key();
         ParameterInfo& info = it.value();
 
@@ -1045,7 +1069,8 @@ void LoggerWindow::updatePlot()
         if (!graph) {
             graph = m_plot->addGraph();
             graph->setName(name);
-            graph->setPen(QPen(QColor::fromHsv(qrand() % 360, 255, 255)));
+            // Используем QRandomGenerator вместо устаревшего qrand()
+            graph->setPen(QPen(QColor::fromHsv(QRandomGenerator::global()->bounded(360), 255, 255)));
         }
 
         // Обновляем данные
@@ -1133,5 +1158,96 @@ void LoggerWindow::stopLogging()
     if (m_isFileLogging) {
         m_csvFile.close();
         m_isFileLogging = false;
+    }
+}
+
+void LoggerWindow::setupLoggerDefinitionLoader()
+{
+    // Добавляем кнопку для загрузки файла определений в UI
+    QPushButton *loadDefinitionButton = new QPushButton("Load Definition", this);
+    ui->toolBar->addWidget(loadDefinitionButton);
+
+    connect(loadDefinitionButton, &QPushButton::clicked, this, &LoggerWindow::loadLoggerDefinition);
+}
+
+void LoggerWindow::loadLoggerDefinition()
+{
+    QString filePath = QFileDialog::getOpenFileName(this,
+                                                    "Open Logger Definition File",
+                                                    "",
+                                                    "XML Files (*.xml)");
+
+    if (filePath.isEmpty()) {
+        return;
+    }
+
+    if (m_definitionLoader.loadFromXml(filePath)) {
+        m_parameters = m_definitionLoader.getParameters();
+
+        // Очищаем существующие данные
+        ui->parametersTree->clear();
+
+        // Настраиваем заголовки колонок
+        ui->parametersTree->setColumnCount(3);
+        QStringList headers;
+        headers << "" << "Parameter" << "Units";
+        ui->parametersTree->setHeaderLabels(headers);
+
+        // Включаем чекбоксы
+        ui->parametersTree->setSelectionMode(QAbstractItemView::MultiSelection);
+        ui->parametersTree->setSelectionBehavior(QAbstractItemView::SelectRows);
+
+        // Заполняем дерево параметров
+        for (auto it = m_parameters.constBegin(); it != m_parameters.constEnd(); ++it) {
+            QTreeWidgetItem *categoryItem = new QTreeWidgetItem(ui->parametersTree);
+            categoryItem->setText(0, it.key());
+            categoryItem->setFlags(categoryItem->flags() | Qt::ItemIsTristate | Qt::ItemIsUserCheckable);
+            categoryItem->setCheckState(0, Qt::Unchecked);
+
+            for (const ParameterDefinition &param : it.value()) {
+                QTreeWidgetItem *paramItem = new QTreeWidgetItem(categoryItem);
+                paramItem->setFlags(paramItem->flags() | Qt::ItemIsUserCheckable);
+                paramItem->setCheckState(0, Qt::Unchecked);
+                paramItem->setText(1, param.name);
+
+                // Если у параметра несколько единиц измерения
+                if (param.unitsList.size() > 1) {
+                    // Создаем ComboBox
+                    QComboBox* unitsCombo = new QComboBox();
+                    for (const auto& unitPair : param.unitsList) {
+                        unitsCombo->addItem(unitPair.first, unitPair.second); // first - текст (units), second - формула
+                    }
+
+                    // Подключаем обработчик изменения выбора
+                    connect(unitsCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                            [this, paramItem](int index) {
+                                QComboBox* combo = qobject_cast<QComboBox*>(sender());
+                                if (combo) {
+                                    QString formula = combo->currentData().toString();
+                                    // Сохраняем выбранную формулу для параметра
+                                    paramItem->setData(2, Qt::UserRole, formula);
+                                }
+                            });
+
+                    ui->parametersTree->setItemWidget(paramItem, 2, unitsCombo);
+                } else {
+                    // Если единица измерения только одна
+                    paramItem->setText(2, param.units);
+                }
+
+                paramItem->setData(0, Qt::UserRole, QVariant::fromValue(param));
+            }
+        }
+
+        ui->parametersTree->expandAll();
+
+        // Устанавливаем размеры колонок по содержимому
+        for(int i = 0; i < ui->parametersTree->columnCount(); ++i) {
+            ui->parametersTree->resizeColumnToContents(i);
+        }
+
+        QMessageBox::information(this, "Success", "Logger definition loaded successfully.");
+    } else {
+        QMessageBox::warning(this, "Error", "Failed to load logger definition.");
     }
 }

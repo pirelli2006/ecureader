@@ -11,6 +11,7 @@ CONFIG += c++17
 SOURCES += \
     configmanager.cpp \
     j2534.cpp \
+    loggerdefinitionloader.cpp \
     loggerwindow.cpp \
     main.cpp \
     mainwindow.cpp \
@@ -25,10 +26,12 @@ HEADERS += \
     configmanager.h \
     j2534.h \
     j2534_tactrix.h \
+    loggerdefinitionloader.h \
     loggerwindow.h \
     mainwindow.h \
     parameter.h \
     parameterconfig.h \
+    parameterdefinition.h \
     parameterselectiondialog.h \
     parameterwidget.h \
     parameterwindow.h \
