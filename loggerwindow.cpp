@@ -1167,36 +1167,76 @@ void LoggerWindow::stopLogging()
 
 void LoggerWindow::setupLoggerDefinitionLoader()
 {
-    // Добавляем кнопку для загрузки файла определений в UI
-    QPushButton *loadDefinitionButton = new QPushButton("Load Definition", this);
-    ui->toolBar->addWidget(loadDefinitionButton);
+    try {
+        QFile file("config.json");
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            qWarning() << "Failed to open config.json";
+            return;
+        }
 
-    connect(loadDefinitionButton, &QPushButton::clicked, this, &LoggerWindow::loadLoggerDefinition);
+        QString jsonContent = file.readAll();
+        file.close();
+
+        QJsonDocument doc = QJsonDocument::fromJson(jsonContent.toUtf8());
+        if (doc.isNull()) {
+            qWarning() << "Failed to parse JSON";
+            return;
+        }
+
+        QJsonObject rootObj = doc.object();
+        if (!rootObj.contains("appName")) {
+            qWarning() << "Missing appName in config";
+            return;
+        }
+
+        // Здесь обрабатываем данные из JSON
+        QJsonValue appNameValue = rootObj.value("appName");
+        // Используем полученные данные...
+
+    } catch (const std::exception& e) {
+        qWarning() << "Exception in setupLoggerDefinitionLoader:" << e.what();
+    } catch (...) {
+        qWarning() << "Unknown exception in setupLoggerDefinitionLoader";
+    }
 }
 
 void LoggerWindow::loadLoggerDefinition()
 {
     QFile file("logger.xml");
     if (!file.open(QIODevice::ReadOnly)) {
-        qDebug() << "Failed to open logger definition file";
+        qCritical() << "Failed to open logger definition file: " << file.errorString();
         return;
     }
 
     QDomDocument doc;
-    if (!doc.setContent(&file)) {
+    QString errorMsg;
+    int errorLine, errorColumn;
+    if (!doc.setContent(&file, &errorMsg, &errorLine, &errorColumn)) {
         file.close();
-        qDebug() << "Failed to parse XML content";
+        qCritical() << "Failed to parse XML content: " << errorMsg
+                    << " at line " << errorLine << ", column " << errorColumn;
         return;
     }
     file.close();
 
     m_parameters.clear();
+    m_parameterValues.clear();  // Очищаем также m_parameterValues
 
     QDomElement root = doc.documentElement();
-    QDomElement categoryElement = root.firstChildElement("category");
+    if (root.tagName() != "logger_definition") {
+        qWarning() << "Unexpected root element: " << root.tagName();
+        return;
+    }
 
+    QDomElement categoryElement = root.firstChildElement("category");
     while (!categoryElement.isNull()) {
         QString categoryName = categoryElement.attribute("name");
+        if (categoryName.isEmpty()) {
+            qWarning() << "Found category without name, skipping";
+            categoryElement = categoryElement.nextSiblingElement("category");
+            continue;
+        }
+
         QList<ParameterDefinition>& categoryParams = m_parameters[categoryName];
 
         QDomElement paramElement = categoryElement.firstChildElement("parameter");
@@ -1204,6 +1244,13 @@ void LoggerWindow::loadLoggerDefinition()
             ParameterDefinition param;
             param.category = categoryName;
             param.id = paramElement.attribute("id");
+
+            if (param.id.isEmpty()) {
+                qWarning() << "Found parameter without id in category " << categoryName << ", skipping";
+                paramElement = paramElement.nextSiblingElement("parameter");
+                continue;
+            }
+
             param.name = paramElement.attribute("name");
             param.description = paramElement.attribute("description");
             param.address = paramElement.attribute("address");
@@ -1247,6 +1294,8 @@ void LoggerWindow::loadLoggerDefinition()
     }
 
     updateParametersTree();
+    qDebug() << "Logger definition loaded successfully. Categories: " << m_parameters.size()
+             << ", Parameters: " << m_parameterValues.size();
 }
 
 void LoggerWindow::updateParametersTree()
@@ -1277,37 +1326,45 @@ void LoggerWindow::updateParametersTree()
 void LoggerWindow::processParameterData(const QString& paramId, const QByteArray& data)
 {
     const ConfigManager::Parameter* param = ConfigManager::instance().getParameter(paramId);
-    if (!param || param->conversions.empty()) {
-        qDebug() << "Parameter not found or has no conversions:" << paramId;
+    if (!param) {
+        qWarning() << "Parameter not found:" << paramId;
+        return;
+    }
+    if (param->conversions.empty()) {
+        qWarning() << "Parameter has no conversions:" << paramId;
         return;
     }
 
     const ConfigManager::Conversion& conv = param->conversions.front();
 
     std::vector<double> values;
-    for (char byte : data) {
-        values.push_back(static_cast<unsigned char>(byte));
+    values.reserve(data.size());  // Оптимизация: резервируем память заранее
+    for (unsigned char byte : data) {
+        values.push_back(byte);
     }
 
-    // Предполагаем, что у ConfigManager::Conversion есть метод evaluate
     double value = conv.evaluate(values);
 
-    QString formattedValue;
-    QString format = conv.format;
-    if (!format.isEmpty()) {
-        if (format.contains('f')) {
-            int precision = format.mid(format.indexOf('.') + 1, 1).toInt();
-            formattedValue = QString::number(value, 'f', precision);
-        } else if (format.contains('d')) {
-            formattedValue = QString::number(static_cast<int>(value));
-        } else {
-            formattedValue = QString::number(value);
-        }
-    } else {
-        formattedValue = QString::number(value);
-    }
+    QString formattedValue = formatValue(value, conv.format);
 
     updateParameterValue(param->name, formattedValue, conv.units);
+}
+
+QString LoggerWindow::formatValue(double value, const QString& format)
+{
+    if (format.isEmpty()) {
+        return QString::number(value);
+    }
+
+    if (format.contains('f')) {
+        int precision = format.mid(format.indexOf('.') + 1, 1).toInt();
+        return QString::number(value, 'f', precision);
+    }
+    if (format.contains('d')) {
+        return QString::number(static_cast<int>(value));
+    }
+
+    return QString::number(value);
 }
 
 void LoggerWindow::updateParameterValue(const QString& name, const QString& value, const QString& units)
@@ -1320,24 +1377,26 @@ void LoggerWindow::updateParameterValue(const QString& name, const QString& valu
     }
 
     // Обновление виджета параметра
-    if (m_parameterWidgets.contains(name)) {
+    auto widgetIt = m_parameterWidgets.find(name);
+    if (widgetIt != m_parameterWidgets.end()) {
         bool ok;
         double doubleValue = value.toDouble(&ok);
         if (ok) {
-            m_parameterWidgets[name]->updateValue(doubleValue);
+            widgetIt.value()->updateValue(doubleValue);
         } else {
-            m_parameterWidgets[name]->updateValue(value);
+            widgetIt.value()->updateValue(value);
         }
     }
 
     // Обновление данных для графика
-    if (m_parameterValues.contains(name)) {
+    auto valueIt = m_parameterValues.find(name);
+    if (valueIt != m_parameterValues.end()) {
         bool ok;
         double doubleValue = value.toDouble(&ok);
         if (ok) {
-            m_parameterValues[name].history.append(doubleValue);
-            if (m_parameterValues[name].history.size() > MAX_HISTORY_SIZE) {
-                m_parameterValues[name].history.removeFirst();
+            valueIt.value().history.append(doubleValue);
+            if (valueIt.value().history.size() > MAX_HISTORY_SIZE) {
+                valueIt.value().history.removeFirst();
             }
         }
     }

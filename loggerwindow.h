@@ -114,6 +114,7 @@ private:
     void processParameterData(const QString& paramId, const QByteArray& data);
     void updateParameterValue(const QString& name, const QString& value, const QString& units);
     void updateParametersTree();
+    QString formatValue(double value, const QString& format);
 
     struct CategoryParameters {
         QString name;

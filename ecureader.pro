@@ -15,6 +15,8 @@ CONFIG += c++17
 QMAKE_CXXFLAGS += -fexceptions
 CONFIG += debug
 
+QMAKE_LFLAGS += -static-libgcc -static-libstdc++
+
 # Для Windows
 win32 {
     CONFIG += windows

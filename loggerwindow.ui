@@ -11,8 +11,153 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Logger</string>
+   <string>Advanced Logger</string>
   </property>
+ <property name="styleSheet">
+   <string notr="true">
+    QMainWindow {
+        background-color: #f0f0f0;
+    }
+    QGroupBox {
+        background-color: #ffffff;
+        border: 1px solid #cccccc;
+        border-radius: 5px;
+        margin-top: 10px;
+        font-weight: bold;
+    }
+    QGroupBox::title {
+        subcontrol-origin: margin;
+        left: 10px;
+        padding: 0 5px;
+        color: #333333;
+    }
+    QPushButton {
+        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 #4a90e2, stop:1 #357abd);
+        color: white;
+        border: 1px solid #2d6da3;
+        padding: 5px 15px;
+        border-radius: 3px;
+        font-weight: bold;
+        min-width: 80px;
+        min-height: 20px;
+    }
+    QPushButton:hover {
+        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 #357abd, stop:1 #2d6da3);
+    }
+    QPushButton:pressed {
+        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 #2d6da3, stop:1 #357abd);
+        padding-top: 6px;
+        padding-bottom: 4px;
+    }
+    QPushButton:disabled {
+        background-color: #cccccc;
+        border: 1px solid #999999;
+        color: #666666;
+    }
+    QPushButton:enabled {
+        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 #4a90e2, stop:1 #357abd);
+    }
+	QPushButton#loadXmlButton {
+        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 #5cb85c, stop:1 #449d44);
+        color: white;
+        border: 1px solid #398439;
+        padding: 5px 15px;
+        border-radius: 3px;
+        font-weight: bold;
+        min-width: 80px;
+        min-height: 20px;
+    }
+    QPushButton#loadXmlButton:hover {
+        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 #449d44, stop:1 #398439);
+    }
+    QPushButton#loadXmlButton:pressed {
+        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                        stop:0 #398439, stop:1 #449d44);
+    }
+    QComboBox {
+        border: 1px solid #cccccc;
+        border-radius: 3px;
+        padding: 5px;
+        background-color: white;
+        min-height: 20px;
+    }
+    QComboBox:hover {
+        border: 1px solid #999999;
+    }
+    QComboBox:disabled {
+        background-color: #f0f0f0;
+        color: #666666;
+    }
+    QTreeWidget {
+        border: 1px solid #cccccc;
+        border-radius: 3px;
+        background-color: white;
+        alternate-background-color: #f9f9f9;
+    }
+    QTreeWidget::item {
+        height: 25px;
+    }
+    QTreeWidget::item:selected {
+        background-color: #e8f0fe;
+        color: #000000;
+    }
+    QTabWidget::pane {
+        border: 1px solid #cccccc;
+        border-radius: 3px;
+        background-color: white;
+        top: -1px;
+    }
+    QTabBar::tab {
+        background-color: #e0e0e0;
+        border: 1px solid #cccccc;
+        border-bottom-color: #cccccc;
+        border-top-left-radius: 3px;
+        border-top-right-radius: 3px;
+        padding: 6px 15px;
+        margin-right: 2px;
+    }
+    QTabBar::tab:selected {
+        background-color: white;
+        border-bottom-color: white;
+    }
+    QTabBar::tab:hover:!selected {
+        background-color: #eeeeee;
+    }
+    QTextEdit {
+        background-color: white;
+        border: 1px solid #cccccc;
+        border-radius: 3px;
+    }
+    QMenuBar {
+        background-color: #f8f8f8;
+        border-bottom: 1px solid #cccccc;
+    }
+    QMenuBar::item {
+        padding: 5px 10px;
+    }
+    QMenuBar::item:selected {
+        background-color: #e8e8e8;
+    }
+    QToolBar {
+        background-color: #f8f8f8;
+        border-bottom: 1px solid #cccccc;
+        spacing: 5px;
+    }
+    QStatusBar {
+        background-color: #f8f8f8;
+        color: #666666;
+    }
+    QLabel {
+        color: #333333;
+    }
+   </string>
+</property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
@@ -147,7 +292,7 @@
             <item>
              <widget class="QTextEdit" name="logTextEdit">
               <property name="readOnly">
-               <bool>true</bool>
+               <bool >true</bool>
               </property>
              </widget>
             </item>
@@ -167,17 +312,18 @@
      <x>0</x>
      <y>0</y>
      <width>1024</width>
-     <height>18</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
-    <property name="title">
-     <string>File</string>
-    </property>
-    <addaction name="actionSaveLog"/>
-    <addaction name="separator"/>
-    <addaction name="actionExit"/>
-   </widget>
+ <property name="title">
+  <string>File</string>
+ </property>
+ <addaction name="actionLoadXml"/>
+ <addaction name="actionSaveLog"/>
+ <addaction name="separator"/>
+ <addaction name="actionExit"/>
+</widget>
    <widget class="QMenu" name="menuSettings">
     <property name="title">
      <string>Settings</string>
@@ -187,7 +333,7 @@
    <addaction name="menuFile"/>
    <addaction name="menuSettings"/>
   </widget>
-  <widget class="QToolBar" name="toolBar">
+       <widget class="QToolBar" name="toolBar">
    <property name="windowTitle">
     <string>Tool Bar</string>
    </property>
@@ -197,6 +343,27 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <widget class="QPushButton" name="loadXmlButton">
+    <property name="text">
+     <string>Load XML</string>
+    </property>
+    <property name="toolTip">
+     <string>Load XML configuration file</string>
+    </property>
+    <property name="minimumSize">
+     <size>
+      <width>100</width>
+      <height>30</height>
+     </size>
+    </property>
+    <property name="maximumSize">
+     <size>
+      <width>100</width>
+      <height>30</height>
+     </size>
+    </property>
+   </widget>
+   <addaction name="separator"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionSaveLog">
