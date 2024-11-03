@@ -11,61 +11,151 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>CAN Adapter</string>
+   <string>ECU Loader</string>
   </property>
+  <property name="styleSheet">
+ <string notr="true">
+  QMainWindow {
+    background-color: #f0f0f0;
+  }
+  QWidget {
+    font-family: "Segoe UI", sans-serif;
+    font-size: 9pt;
+  }
+  QComboBox {
+    border: 1px solid #cccccc;
+    border-radius: 2px;
+    padding: 2px 5px;
+    background-color: white;
+    min-height: 20px;
+  }
+  QComboBox:hover {
+    border: 1px solid #999999;
+  }
+  QComboBox:disabled {
+    background-color: #f0f0f0;
+    color: #666666;
+  }
+  QPushButton {
+    background-color: #4a90e2;
+    color: white;
+    border: 1px solid #357abd;
+    padding: 4px 10px;
+    border-radius: 2px;
+    font-weight: bold;
+    min-width: 80px;
+    min-height: 25px;
+  }
+  QPushButton:hover {
+    background-color: #357abd;
+    border: 1px solid #2d6da3;
+  }
+  QPushButton:pressed {
+    background-color: #2d6da3;
+    padding-top: 5px;
+    padding-bottom: 3px;
+  }
+  QPushButton:disabled {
+    background-color: #cccccc;
+    border: 1px solid #999999;
+    color: #666666;
+  }
+  QTextEdit {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 2px;
+    padding: 5px;
+    font-family: Consolas, Monaco, monospace;
+    font-size: 9pt;
+  }
+  QStatusBar {
+    background-color: #f8f8f8;
+    color: #666666;
+  }
+ </string>
+</property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout">
-      <item>
-       <widget class="QComboBox" name="adapterComboBox"/>
-      </item>
-      <item>
-       <widget class="QPushButton" name="IdentificationButton">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="text">
-         <string>Identification</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="LoggerButton">
-        <property name="text">
-         <string>Logger</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <spacer name="horizontalSpacer">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>40</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-     </layout>
+     <widget class="QGroupBox" name="controlGroup">
+      <property name="title">
+       <string>Connection Control</string>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout">
+       <item>
+        <widget class="QLabel" name="adapterLabel">
+         <property name="text">
+          <string>Interface:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="adapterComboBox"/>
+       </item>
+       <item>
+        <widget class="QPushButton" name="IdentificationButton">
+		<property name="enabled">
+		<bool>true</bool>
+		</property>
+		<property name="text">
+		<string>Identification</string>
+		</property>
+		<property name="icon">
+		<iconset>
+		<normaloff>icons/id.png</normaloff>icons/id.png</iconset>
+		</property>
+		</widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="LoggerButton">
+		<property name="text">
+		<string>Logger</string>
+		</property>
+		<property name="icon">
+		<iconset>
+		<normaloff>icons/logger.png</normaloff>icons/logger.png</iconset>
+		</property>
+		</widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
     </item>
     <item>
-     <widget class="QTextEdit" name="logTextEdit">
-      <property name="font">
-       <font>
-        <family>Consolas</family>
-        <pointsize>10</pointsize>
-       </font>
+     <widget class="QGroupBox" name="logGroup">
+      <property name="title">
+       <string>Communication Log</string>
       </property>
-      <property name="lineWrapMode">
-       <enum>QTextEdit::NoWrap</enum>
-      </property>
-      <property name="readOnly">
-       <bool>true</bool>
-      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <widget class="QTextEdit" name="logTextEdit">
+         <property name="font">
+          <font>
+           <family>Consolas</family>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
+         <property name="lineWrapMode">
+          <enum>QTextEdit::NoWrap</enum>
+         </property>
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </widget>
     </item>
    </layout>

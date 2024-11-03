@@ -32,54 +32,46 @@
         color: #333333;
     }
     QPushButton {
-        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 #4a90e2, stop:1 #357abd);
-        color: white;
-        border: 1px solid #2d6da3;
-        padding: 5px 15px;
-        border-radius: 3px;
-        font-weight: bold;
-        min-width: 80px;
-        min-height: 20px;
-    }
-    QPushButton:hover {
-        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 #357abd, stop:1 #2d6da3);
-    }
-    QPushButton:pressed {
-        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 #2d6da3, stop:1 #357abd);
-        padding-top: 6px;
-        padding-bottom: 4px;
-    }
-    QPushButton:disabled {
-        background-color: #cccccc;
-        border: 1px solid #999999;
-        color: #666666;
-    }
-    QPushButton:enabled {
-        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 #4a90e2, stop:1 #357abd);
-    }
-	QPushButton#loadXmlButton {
-        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 #5cb85c, stop:1 #449d44);
-        color: white;
-        border: 1px solid #398439;
-        padding: 5px 15px;
-        border-radius: 3px;
-        font-weight: bold;
-        min-width: 80px;
-        min-height: 20px;
-    }
-    QPushButton#loadXmlButton:hover {
-        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 #449d44, stop:1 #398439);
-    }
-    QPushButton#loadXmlButton:pressed {
-        background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                                        stop:0 #398439, stop:1 #449d44);
-    }
+    background-color: #4a90e2;
+    color: white;
+    border: 1px solid #357abd;
+    padding: 5px 15px;
+    border-radius: 3px;
+    font-weight: bold;
+    min-width: 80px;
+    min-height: 20px;
+}
+
+QPushButton:hover {
+    background-color: #357abd;
+    border: 1px solid #2d6da3;
+}
+
+QPushButton:pressed {
+    background-color: #2d6da3;
+    padding-top: 6px;
+    padding-bottom: 4px;
+}
+
+QPushButton:disabled {
+    background-color: #cccccc;
+    border: 1px solid #999999;
+    color: #666666;
+}
+
+QPushButton#loadXmlButton {
+    background-color: #5cb85c;
+    border: 1px solid #4cae4c;
+}
+
+QPushButton#loadXmlButton:hover {
+    background-color: #449d44;
+    border: 1px solid #398439;
+}
+
+QPushButton#loadXmlButton:pressed {
+    background-color: #398439;
+}
     QComboBox {
         border: 1px solid #cccccc;
         border-radius: 3px;
