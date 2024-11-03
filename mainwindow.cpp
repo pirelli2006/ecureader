@@ -6,6 +6,7 @@
 #include <QTimer>
 #include <QThread>
 #include <QFileInfo>
+#include "settings.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -20,6 +21,9 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    updateDeviceList();
+    loadSettings();
+
     m_readTimer = new QTimer(this);
     connect(m_readTimer, &QTimer::timeout, this, &MainWindow::onReadTimer);
     connect(ui->IdentificationButton, &QPushButton::clicked, this, &MainWindow::onIdentificationButtonClicked);
@@ -27,16 +31,46 @@ MainWindow::MainWindow(QWidget *parent)
 
     //connect(this, &MainWindow::openLoggerWindow, this, &MainWindow::onOpenLogger);
 
-    updateDeviceList();
+
 }
 
 MainWindow::~MainWindow()
 {
     disconnectCurrent();
+    saveSettings();
     delete ui;
     if (m_loggerWindow) {
         delete m_loggerWindow;
     }
+}
+
+void MainWindow::loadSettings()
+{
+    Settings& settings = Settings::getInstance();
+
+    // Загрузка выбранного адаптера
+    QString selectedAdapter = settings.getSelectedAdapter();
+    int index = ui->adapterComboBox->findText(selectedAdapter);
+    if (index != -1) {
+        ui->adapterComboBox->setCurrentIndex(index);
+    }
+
+    // Восстановление геометрии и состояния главного окна
+    restoreGeometry(settings.getMainWindowGeometry());
+    restoreState(settings.getMainWindowState());
+}
+
+void MainWindow::saveSettings()
+{
+    Settings& settings = Settings::getInstance();
+
+    // Сохранение выбранного адаптера
+    QString selectedAdapter = ui->adapterComboBox->currentText();
+    settings.setSelectedAdapter(selectedAdapter);
+
+    // Сохранение геометрии и состояния главного окна
+    settings.setMainWindowGeometry(saveGeometry());
+    settings.setMainWindowState(saveState());
 }
 
 
@@ -386,6 +420,7 @@ void MainWindow::onAdapterComboBoxCurrentTextChanged(const QString &currentText)
 
     // Начинаем чтение данных
     m_readTimer->start(10);
+    saveSettings();
 }
 
 QByteArray passthruMsgToByteArray(const PASSTHRU_MSG &msg) {

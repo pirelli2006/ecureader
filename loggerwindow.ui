@@ -69,6 +69,20 @@ QPushButton#loadXmlButton:hover {
     border: 1px solid #398439;
 }
 
+QPushButton#selectLogDirButton {
+    background-color: #5bc0de;
+    border: 1px solid #46b8da;
+}
+
+QPushButton#selectLogDirButton:hover {
+    background-color: #31b0d5;
+    border: 1px solid #269abc;
+}
+
+QPushButton#selectLogDirButton:pressed {
+    background-color: #269abc;
+}
+
 QPushButton#loadXmlButton:pressed {
     background-color: #398439;
 }
@@ -157,7 +171,7 @@ QPushButton#loadXmlButton:pressed {
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
-      <widget class="QWidget" name="leftPanel" native="true">
+	        <widget class="QWidget" name="leftPanel" native="true">
        <layout class="QVBoxLayout" name="verticalLayout_2">
         <item>
          <widget class="QGroupBox" name="connectionGroup">
@@ -276,7 +290,7 @@ QPushButton#loadXmlButton:pressed {
             </item>
            </layout>
           </widget>
-          <widget class="QWidget" name="logTab">
+		            <widget class="QWidget" name="logTab">
            <attribute name="title">
             <string>Log</string>
            </attribute>
@@ -284,7 +298,7 @@ QPushButton#loadXmlButton:pressed {
             <item>
              <widget class="QTextEdit" name="logTextEdit">
               <property name="readOnly">
-               <bool >true</bool>
+               <bool>true</bool>
               </property>
              </widget>
             </item>
@@ -325,7 +339,7 @@ QPushButton#loadXmlButton:pressed {
    <addaction name="menuFile"/>
    <addaction name="menuSettings"/>
   </widget>
-       <widget class="QToolBar" name="toolBar">
+   <widget class="QToolBar" name="toolBar">
    <property name="windowTitle">
     <string>Tool Bar</string>
    </property>
@@ -356,8 +370,29 @@ QPushButton#loadXmlButton:pressed {
     </property>
    </widget>
    <addaction name="separator"/>
-  </widget>
-  <widget class="QStatusBar" name="statusbar"/>
+   <widget class="QPushButton" name="selectLogDirButton">
+    <property name="text">
+     <string>Set Log Dir</string>
+    </property>
+    <property name="toolTip">
+     <string>Select directory for log files</string>
+    </property>
+    <property name="minimumSize">
+     <size>
+      <width>100</width>
+      <height>30</height>
+     </size>
+    </property>
+    <property name="maximumSize">
+     <size>
+      <width>100</width>
+      <height>30</height>
+     </size>
+    </property>
+   </widget>
+   <addaction name="separator"/>
+</widget>
+   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionSaveLog">
    <property name="text">
     <string>Save Log...</string>

@@ -28,6 +28,7 @@
 #include <QDomDocument>
 #include <QDomElement>
 #include "parameter.h"
+#include "settings.h"
 
 
 LoggerWindow::LoggerWindow(QWidget *parent) :
@@ -77,6 +78,11 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
 
     initializeUI();
     qDebug() << "UI initialization completed";
+    m_isFileLogging = false;
+    m_lastLogDirectory = Settings::getInstance().value("Logger/LastLogDirectory", QString()).toString();
+
+    connect(ui->selectLogDirButton, &QPushButton::clicked, this, &LoggerWindow::onSelectLogDirClicked);
+    connect(ui->fileLogButton, &QPushButton::clicked, this, &LoggerWindow::onFileLogButtonClicked);
 
     connect(this, &LoggerWindow::connectionEstablished, this, &LoggerWindow::onConnectionEstablished);
 
@@ -87,10 +93,15 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
     ui->startButton->setEnabled(true);
     ui->stopButton->setEnabled(false);
     ui->fileLogButton->setEnabled(false);
+    loadSettings();
 }
 
 LoggerWindow::~LoggerWindow()
 {
+    if (m_isFileLogging) {
+        m_logFile.close();
+    }
+
     if (m_isLogging) {
         qDebug() << "Stopping logging from destructor";
         onStopLoggingClicked();
@@ -111,6 +122,7 @@ LoggerWindow::~LoggerWindow()
     m_parameterWidgets.clear();
 
     disconnectCurrent();
+    saveSettings();
 
     if (ui) {
         delete ui;
@@ -126,6 +138,7 @@ void LoggerWindow::closeEvent(QCloseEvent *event)
     if (m_isFileLogging) {
         m_csvFile.close();
     }
+    saveSettings();
     emit closed();
     event->accept();
 }
@@ -185,39 +198,200 @@ void LoggerWindow::onPreferencesTriggered()
 
 void LoggerWindow::onFileLogButtonClicked()
 {
-    // Здесь должна быть реализация функции
-    // Например:
-    QString fileName = QFileDialog::getSaveFileName(this, tr("Save Log File"), "", tr("Log Files (*.log);;All Files (*)"));
-    if (fileName.isEmpty())
-        return;
-    else {
-        QFile file(fileName);
-        if (!file.open(QIODevice::WriteOnly)) {
-            QMessageBox::information(this, tr("Unable to open file"), file.errorString());
+    if (!m_isFileLogging) {
+        // Если директория не выбрана, предложить выбрать
+        if (m_lastLogDirectory.isEmpty()) {
+            QMessageBox::warning(this, tr("Warning"),
+                                 tr("Please select log directory first"));
+            onSelectLogDirClicked();
+            if (m_lastLogDirectory.isEmpty()) {
+                return;
+            }
+        }
+
+        // Создаем имя файла с текущей датой и временем
+        QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
+        QString filePath = m_lastLogDirectory + QDir::separator() + "log_" + timestamp + ".txt";
+
+        m_logFile.setFileName(filePath);
+        if (!m_logFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QMessageBox::critical(this, tr("Error"),
+                                  tr("Cannot open file for writing: %1").arg(m_logFile.errorString()));
             return;
         }
-        QTextStream out(&file);
-        out << ui->logTextEdit->toPlainText();
+
+        m_isFileLogging = true;
+        ui->fileLogButton->setText(tr("Stop File Log"));
+        ui->fileLogButton->setStyleSheet("background-color: #d9534f; border: 1px solid #d43f3a;"); // Красный цвет для кнопки остановки
+        appendToLog(QString("Started logging to file: %1").arg(filePath));
+    } else {
+        // Останавливаем логирование
+        if (m_logFile.isOpen()) {
+            m_logFile.close();
+        }
+        m_isFileLogging = false;
+        ui->fileLogButton->setText(tr("Start File Log"));
+        ui->fileLogButton->setStyleSheet(""); // Возвращаем стандартный стиль
+        appendToLog("Stopped logging to file");
     }
+}
+
+void LoggerWindow::saveSettings()
+{
+    Settings& settings = Settings::getInstance();
+
+    // Проверка инициализации UI элементов
+    if (!ui || !ui->displayModeComboBox || !ui->adapterComboBox || !ui->logTextEdit) {
+        qDebug() << "Error: UI elements are not initialized!";
+        return;
+    }
+
+    if (!m_readTimer) {
+        qDebug() << "Warning: m_readTimer is null!";
+    }
+
+    if (m_selectedParameters.isEmpty()) {
+        qDebug() << "Warning: m_selectedParameters is empty!";
+    }
+
+    // Отладочная информация перед сохранением
+    qDebug() << "=== Saving LoggerWindow settings ===";
+    qDebug() << "DisplayMode:" << ui->displayModeComboBox->currentIndex();
+    qDebug() << "CurrentAdapter:" << ui->adapterComboBox->currentText();
+    qDebug() << "AutoScroll:" << (ui->logTextEdit->document()->maximumBlockCount() > 0);
+    qDebug() << "MaxLogLines:" << ui->logTextEdit->document()->maximumBlockCount();
+    qDebug() << "PlotUpdateInterval:" << (m_readTimer ? m_readTimer->interval() : 100);
+    qDebug() << "SelectedParameters:" << m_selectedParameters;
+    qDebug() << "FileLoggingEnabled:" << m_isFileLogging;
+    qDebug() << "LastLogDirectory:" << m_lastLogDirectory;
+
+    // Сохранение настроек
+    settings.setValue("LoggerWindow/geometry", saveGeometry());
+    settings.setValue("LoggerWindow/state", saveState());
+    settings.setValue("LoggerWindow/DisplayMode", ui->displayModeComboBox->currentIndex());
+    settings.setValue("LoggerWindow/CurrentAdapter", ui->adapterComboBox->currentText());
+    settings.setValue("LoggerWindow/AutoScroll", ui->logTextEdit->document()->maximumBlockCount() > 0);
+    settings.setValue("LoggerWindow/MaxLogLines", ui->logTextEdit->document()->maximumBlockCount());
+    settings.setValue("LoggerWindow/PlotUpdateInterval", m_readTimer ? m_readTimer->interval() : 100);
+
+    // Сохранение выбранных параметров
+    QStringList selectedParameters;
+    for (const auto& param : m_selectedParameters) {
+        selectedParameters << param;
+    }
+    settings.setValue("LoggerWindow/SelectedParameters", selectedParameters);
+
+    // Сохранение развернутых категорий
+    QStringList expandedCategories;
+    for (int i = 0; i < ui->parametersTree->topLevelItemCount(); ++i) {
+        QTreeWidgetItem* item = ui->parametersTree->topLevelItem(i);
+        if (item->isExpanded()) {
+            expandedCategories << item->text(0);
+        }
+    }
+    settings.setValue("LoggerWindow/ExpandedCategories", expandedCategories);
+
+    // Сохранение настроек логирования
+    settings.setValue("LoggerWindow/FileLoggingEnabled", m_isFileLogging);
+
+    // Сохранение видимых графиков
+    QStringList visibleGraphs;
+    for (int i = 0; i < m_plot->graphCount(); ++i) {
+        if (m_plot->graph(i)->visible()) {
+            visibleGraphs << m_plot->graph(i)->name();
+        }
+    }
+    settings.setValue("LoggerWindow/VisibleGraphs", visibleGraphs);
+
+    qDebug() << "Settings saved successfully";
 }
 
 void LoggerWindow::loadSettings()
 {
-    QSettings settings;
+    Settings& settings = Settings::getInstance();
 
-    // Загрузка настроек
-    // Например:
-    settings.beginGroup("Logger");
-    // Чтение настроек
-    bool autoScroll = settings.value("AutoScroll", true).toBool();
-    int maxLines = settings.value("MaxLines", 1000).toInt();
-    // и т.д.
-    settings.endGroup();
+    qDebug() << "=== Loading LoggerWindow settings ===";
 
-    // Применение загруженных настроек
-    // Например:
-    // setAutoScroll(autoScroll);
-    // setMaxLines(maxLines);
+    // Загрузка геометрии и состояния окна
+    QByteArray geometry = settings.value("LoggerWindow/geometry", QByteArray()).toByteArray();
+    if (!geometry.isEmpty()) {
+        restoreGeometry(geometry);
+        qDebug() << "Geometry restored";
+    }
+
+    QByteArray state = settings.value("LoggerWindow/state", QByteArray()).toByteArray();
+    if (!state.isEmpty()) {
+        restoreState(state);
+        qDebug() << "State restored";
+    }
+
+    // Загрузка режима отображения
+    int displayMode = settings.value("LoggerWindow/DisplayMode", 0).toInt();
+    qDebug() << "Loading DisplayMode:" << displayMode;
+    ui->displayModeComboBox->setCurrentIndex(displayMode);
+    onDisplayModeChanged(displayMode);
+
+    // Загрузка текущего адаптера
+    QString savedAdapter = settings.value("LoggerWindow/CurrentAdapter", QString()).toString();
+    qDebug() << "Loading CurrentAdapter:" << savedAdapter;
+    if (!savedAdapter.isEmpty()) {
+        int index = ui->adapterComboBox->findText(savedAdapter);
+        if (index >= 0) {
+            ui->adapterComboBox->setCurrentIndex(index);
+        }
+    }
+
+    // Загрузка настроек автопрокрутки и максимального количества строк
+    bool autoScroll = settings.value("LoggerWindow/AutoScroll", true).toBool();
+    int maxLines = settings.value("LoggerWindow/MaxLogLines", 1000).toInt();
+    qDebug() << "Loading AutoScroll:" << autoScroll;
+    qDebug() << "Loading MaxLogLines:" << maxLines;
+    if (autoScroll) {
+        ui->logTextEdit->document()->setMaximumBlockCount(maxLines);
+    }
+
+    // Загрузка интервала обновления
+    int updateInterval = settings.value("LoggerWindow/PlotUpdateInterval", 100).toInt();
+    qDebug() << "Loading PlotUpdateInterval:" << updateInterval;
+    if (m_readTimer) {
+        m_readTimer->setInterval(updateInterval);
+    }
+
+    // Загрузка выбранных параметров
+    QStringList selectedParams = settings.value("LoggerWindow/SelectedParameters", QStringList()).toStringList();
+    qDebug() << "Loading SelectedParameters:" << selectedParams;
+    m_selectedParameters.clear();
+    for (const QString& param : selectedParams) {
+        m_selectedParameters.append(param);
+    }
+
+    // Загрузка развернутых категорий
+    QStringList expandedCategories = settings.value("LoggerWindow/ExpandedCategories", QStringList()).toStringList();
+    qDebug() << "Loading ExpandedCategories:" << expandedCategories;
+    for (int i = 0; i < ui->parametersTree->topLevelItemCount(); ++i) {
+        QTreeWidgetItem* item = ui->parametersTree->topLevelItem(i);
+        if (expandedCategories.contains(item->text(0))) {
+            item->setExpanded(true);
+        }
+    }
+
+    // Загрузка настроек логирования
+    m_isFileLogging = settings.value("LoggerWindow/FileLoggingEnabled", false).toBool();
+    qDebug() << "Loading LastLogDirectory:" << m_lastLogDirectory;
+    qDebug() << "Loading FileLoggingEnabled:" << m_isFileLogging;
+
+    // Загрузка видимых графиков
+    QStringList visibleGraphs = settings.value("LoggerWindow/VisibleGraphs", QStringList()).toStringList();
+    qDebug() << "Loading VisibleGraphs:" << visibleGraphs;
+    for (int i = 0; i < m_plot->graphCount(); ++i) {
+        QCPGraph* graph = m_plot->graph(i);
+        graph->setVisible(visibleGraphs.contains(graph->name()));
+    }
+
+    updatePlot();
+    checkUIState();
+
+    qDebug() << "Settings loaded successfully";
 }
 
 void LoggerWindow::onSaveLogTriggered()
@@ -368,19 +542,128 @@ void LoggerWindow::onReadTimer()
 
 void LoggerWindow::onAdapterChanged(const QString& adapter)
 {
+    qDebug() << "Adapter changed to:" << adapter;
+
     if (adapter.isEmpty()) {
+        appendToLog("Empty adapter selected, ignoring");
         return;
     }
+
+    // Если логгирование активно, останавливаем его
+    if (m_isLogging) {
+        appendToLog("Stopping current logging session before switching adapter");
+        onStopLoggingClicked();
+    }
+
+    // Отключаем текущее соединение, если оно активно
+    disconnectCurrent();
+
+    // Обновляем выбранный адаптер в комбобоксе
     m_adapterComboBox->setCurrentText(adapter);
-    if (!initializeAdapter()) {
-        QMessageBox::critical(this, "Error", "Failed to initialize adapter");
+
+    // Проверяем наличие DLL файла
+    QString dllPath = m_adapterToDllMap.value(adapter);
+    if (dllPath.isEmpty()) {
+        QString errorMsg = QString("No DLL path found for adapter: %1").arg(adapter);
+        appendToLog(errorMsg);
+        QMessageBox::critical(this, "Error", errorMsg);
+        return;
+    }
+
+    if (!QFile::exists(dllPath)) {
+        QString errorMsg = QString("DLL file not found: %1").arg(dllPath);
+        appendToLog(errorMsg);
+        QMessageBox::critical(this, "Error", errorMsg);
+        return;
+    }
+
+    // Пытаемся инициализировать адаптер
+    appendToLog(QString("Initializing adapter: %1").arg(adapter));
+
+    bool initSuccess = false;
+    try {
+        initSuccess = initializeAdapter();
+    }
+    catch (const std::exception& e) {
+        QString errorMsg = QString("Exception during adapter initialization: %1").arg(e.what());
+        appendToLog(errorMsg);
+        QMessageBox::critical(this, "Error", errorMsg);
+        return;
+    }
+
+    if (!initSuccess) {
+        QString errorMsg = "Failed to initialize adapter";
+        appendToLog(errorMsg);
+        QMessageBox::critical(this, "Error", errorMsg);
+
+        // Обновляем состояние UI
+        ui->startButton->setEnabled(false);
+        ui->stopButton->setEnabled(false);
+        ui->fileLogButton->setEnabled(false);
+        return;
+    }
+
+    // Сохраняем выбор адаптера в настройках
+    Settings::getInstance().setValue("Logger/CurrentAdapter", adapter);
+    Settings::getInstance().setValue("Logger/LastUsedDLL", dllPath);
+
+    // Обновляем состояние UI после успешной инициализации
+    ui->startButton->setEnabled(true);
+    ui->stopButton->setEnabled(false);
+    ui->fileLogButton->setEnabled(false);
+
+    appendToLog(QString("Adapter %1 initialized successfully").arg(adapter));
+
+    // Опционально: проверяем соединение
+    if (testAdapterConnection()) {
+        appendToLog("Connection test passed");
+    } else {
+        appendToLog("Warning: Connection test failed");
+    }
+
+    // Emit сигнал об успешном изменении адаптера
+    emit adapterInitialized(adapter);
+}
+
+
+bool LoggerWindow::testAdapterConnection()
+{
+    if (!m_j2534 || !m_deviceId) {
+        return false;
+    }
+
+    try {
+        // Базовый тест соединения
+        unsigned long channelId;
+        long status = m_j2534->PassThruConnect(m_deviceId, ISO15765, 0, 500000, &channelId);
+
+        if (status != STATUS_NOERROR) {
+            appendToLog(QString("Connection test failed: %1").arg(getErrorText(status)));
+            return false;
+        }
+
+        // Закрываем тестовый канал
+        m_j2534->PassThruDisconnect(channelId);
+        return true;
+    }
+    catch (const std::exception& e) {
+        appendToLog(QString("Connection test exception: %1").arg(e.what()));
+        return false;
     }
 }
 
-void LoggerWindow::appendToLog(const QString& message)
+void LoggerWindow::appendToLog(const QString& text)
 {
-    QString timestamp = QDateTime::currentDateTime().toString("hh:mm:ss.zzz");
-    ui->logTextEdit->append(QString("[%1] %2").arg(timestamp).arg(message));
+    QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz");
+    QString logEntry = QString("[%1] %2").arg(timestamp).arg(text);
+
+    ui->logTextEdit->append(logEntry);
+
+    // Если включено логирование в файл, записываем и туда
+    if (m_isFileLogging && m_logFile.isOpen()) {
+        QTextStream stream(&m_logFile);
+        stream << logEntry << Qt::endl;
+    }
 }
 
 void LoggerWindow::disconnectCurrent()
@@ -440,6 +723,23 @@ bool LoggerWindow::sendDiagnosticRequest(uint8_t service, uint16_t pid)
 
     return true;
 }
+
+void LoggerWindow::onSelectLogDirClicked()
+{
+    QString dir = QFileDialog::getExistingDirectory(this, tr("Select Log Directory"),
+                                                    m_lastLogDirectory,
+                                                    QFileDialog::ShowDirsOnly
+                                                        | QFileDialog::DontResolveSymlinks);
+
+    if (!dir.isEmpty()) {
+        m_lastLogDirectory = dir;
+        // Сохраняем только в одном месте
+        Settings::getInstance().setValue("Logger/LastLogDirectory", m_lastLogDirectory);
+        appendToLog(QString("Log directory set to: %1").arg(m_lastLogDirectory));
+    }
+}
+
+
 
 QByteArray LoggerWindow::readDiagnosticResponse(int timeout)
 {

@@ -9,6 +9,7 @@
 #include <QQueue>
 #include "loggerwindow.h"
 
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
@@ -63,6 +64,8 @@ private:
     bool configureChannel(unsigned long baudrate, bool isScanMatic);
     bool setupScanMaticMessageFilter();
     bool setupStandardMessageFilter();
+    void loadSettings();
+    void saveSettings();
 
 
 

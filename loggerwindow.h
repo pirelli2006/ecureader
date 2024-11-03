@@ -21,6 +21,7 @@
 #include "parameterselectiondialog.h"
 #include "expression.h"
 #include <QQueue>
+#include "settings.h"
 
 namespace Ui {
 class LoggerWindow;
@@ -52,6 +53,7 @@ signals:
     void closed(); // Сигнал о закрытии окна
     void connectionEstablished(); // Сигнал об установлении соединения
     void parameterUpdated(const QString& name, const QString& value, const QString& units); // Сигнал об обновлении параметра
+    void adapterInitialized(const QString& adapter);
 
 protected:
     void closeEvent(QCloseEvent *event) override; // Переопределение события закрытия окна
@@ -69,10 +71,12 @@ private slots:
     void onFileLogButtonClicked(); // Обработчик нажатия кнопки записи в файл
     void updateTimePlot();
     void loadLoggerDefinition();
+    void onSelectLogDirClicked();
 
 private:
     void initializeUI(); // Инициализация UI
     void loadSettings(); // Загрузка настроек
+    void saveSettings(); // Сохранение настроек
     void loadAdapters(); // Загрузка доступных адаптеров
     bool initializeConnection(); // Инициализация соединения
     bool initializeAdapter(); // Инициализация адаптера
@@ -115,6 +119,10 @@ private:
     void updateParameterValue(const QString& name, const QString& value, const QString& units);
     void updateParametersTree();
     QString formatValue(double value, const QString& format);
+    bool testAdapterConnection();
+    QString m_lastLogDirectory;
+    QFile m_logFile;
+
 
     struct CategoryParameters {
         QString name;

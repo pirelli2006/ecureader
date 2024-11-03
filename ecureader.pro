@@ -57,7 +57,8 @@ HEADERS += \
     parameterwidget.h \
     parameterwindow.h \
     preferencesdialog.h \
-    qcustomplot.h
+    qcustomplot.h \
+    settings.h
 
 FORMS += \
     loggerwindow.ui \
