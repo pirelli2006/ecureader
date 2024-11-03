@@ -47,6 +47,7 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
     qDebug() << "Starting LoggerWindow constructor";
 
     ui->setupUi(this);
+
     qDebug() << "UI setup completed";
 
     // Используем существующий QCustomPlot из формы
@@ -66,9 +67,14 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
     ui->displayModeComboBox->clear();
     ui->displayModeComboBox->addItem("Widgets");
     ui->displayModeComboBox->addItem("Plot");
+
+    connect(ui->actionLoadXml, &QAction::triggered, this, &LoggerWindow::onLoadXMLClicked);
+    connect(ui->actionSelectLogDir, &QAction::triggered, this, &LoggerWindow::onSelectLogDirClicked);
     connect(ui->displayModeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &LoggerWindow::onDisplayModeChanged);
     connect(ui->startButton, &QPushButton::clicked, this, &LoggerWindow::onStartLoggingClicked);
     connect(ui->stopButton, &QPushButton::clicked, this, &LoggerWindow::onStopLoggingClicked);
+    connect(this, &LoggerWindow::connectionEstablished, this, &LoggerWindow::onConnectionEstablished);
+    connect(ui->fileLogButton, &QPushButton::clicked, this, &LoggerWindow::onFileLogButtonClicked);
     connect(this, &LoggerWindow::connectionEstablished, this, &LoggerWindow::onConnectionEstablished);
 
     // Синхронизация начального состояния отображения
@@ -81,10 +87,7 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
     m_isFileLogging = false;
     m_lastLogDirectory = Settings::getInstance().value("Logger/LastLogDirectory", QString()).toString();
 
-    connect(ui->selectLogDirButton, &QPushButton::clicked, this, &LoggerWindow::onSelectLogDirClicked);
-    connect(ui->fileLogButton, &QPushButton::clicked, this, &LoggerWindow::onFileLogButtonClicked);
 
-    connect(this, &LoggerWindow::connectionEstablished, this, &LoggerWindow::onConnectionEstablished);
 
     checkUIState();
     qDebug() << "Constructor completed";
@@ -94,6 +97,7 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
     ui->stopButton->setEnabled(false);
     ui->fileLogButton->setEnabled(false);
     loadSettings();
+
 }
 
 LoggerWindow::~LoggerWindow()
@@ -193,6 +197,22 @@ void LoggerWindow::onPreferencesTriggered()
     {
         // Применить новые настройки
         loadSettings();
+    }
+}
+
+void LoggerWindow::onLoadXMLClicked()
+{
+    QString startDir = QFileInfo(m_lastXmlFilePath).absolutePath();
+    QString fileName = QFileDialog::getOpenFileName(this,
+                                                    tr("Open XML File"),
+                                                    startDir,  // Начинаем с директории последнего файла
+                                                    tr("XML Files (*.xml);;All Files (*)"));
+
+    if (!fileName.isEmpty()) {
+        m_lastXmlFilePath = fileName;
+        // Сохраняем путь в настройках
+        Settings::getInstance().setValue("Logger/LastXmlFile", m_lastXmlFilePath);
+        loadLoggerDefinition(fileName);
     }
 }
 
@@ -1500,11 +1520,13 @@ void LoggerWindow::setupLoggerDefinitionLoader()
     }
 }
 
-void LoggerWindow::loadLoggerDefinition()
+void LoggerWindow::loadLoggerDefinition(const QString& fileName)
 {
-    QFile file("logger.xml");
+    QString fileToOpen = fileName.isEmpty() ? m_lastXmlFilePath : fileName;
+    QFile file(fileToOpen);
     if (!file.open(QIODevice::ReadOnly)) {
         qCritical() << "Failed to open logger definition file: " << file.errorString();
+        appendToLog(QString("Failed to open logger definition file: %1").arg(file.errorString()));
         return;
     }
 
@@ -1515,16 +1537,19 @@ void LoggerWindow::loadLoggerDefinition()
         file.close();
         qCritical() << "Failed to parse XML content: " << errorMsg
                     << " at line " << errorLine << ", column " << errorColumn;
+        appendToLog(QString("Failed to parse XML content: %1 at line %2, column %3")
+                        .arg(errorMsg).arg(errorLine).arg(errorColumn));
         return;
     }
     file.close();
 
     m_parameters.clear();
-    m_parameterValues.clear();  // Очищаем также m_parameterValues
+    m_parameterValues.clear();
 
     QDomElement root = doc.documentElement();
     if (root.tagName() != "logger_definition") {
         qWarning() << "Unexpected root element: " << root.tagName();
+        appendToLog(QString("Unexpected root element: %1").arg(root.tagName()));
         return;
     }
 
@@ -1533,6 +1558,7 @@ void LoggerWindow::loadLoggerDefinition()
         QString categoryName = categoryElement.attribute("name");
         if (categoryName.isEmpty()) {
             qWarning() << "Found category without name, skipping";
+            appendToLog("Found category without name, skipping");
             categoryElement = categoryElement.nextSiblingElement("category");
             continue;
         }
@@ -1547,6 +1573,7 @@ void LoggerWindow::loadLoggerDefinition()
 
             if (param.id.isEmpty()) {
                 qWarning() << "Found parameter without id in category " << categoryName << ", skipping";
+                appendToLog(QString("Found parameter without id in category %1, skipping").arg(categoryName));
                 paramElement = paramElement.nextSiblingElement("parameter");
                 continue;
             }
@@ -1558,7 +1585,6 @@ void LoggerWindow::loadLoggerDefinition()
             param.expression = paramElement.attribute("expression");
             param.format = paramElement.attribute("format");
 
-            // Парсинг min, max, step если они есть
             bool ok;
             float minVal = paramElement.attribute("min").toFloat(&ok);
             if (ok) param.min = minVal;
@@ -1569,7 +1595,6 @@ void LoggerWindow::loadLoggerDefinition()
             float stepVal = paramElement.attribute("step").toFloat(&ok);
             if (ok) param.step = stepVal;
 
-            // Парсинг списка единиц измерения, если они есть
             QDomElement unitsElement = paramElement.firstChildElement("units");
             while (!unitsElement.isNull()) {
                 QString value = unitsElement.attribute("value");
@@ -1580,7 +1605,6 @@ void LoggerWindow::loadLoggerDefinition()
 
             categoryParams.append(param);
 
-            // Добавляем информацию о параметре в m_parameterValues
             ParameterInfo paramInfo;
             paramInfo.name = param.name;
             paramInfo.units = param.units;
@@ -1594,8 +1618,17 @@ void LoggerWindow::loadLoggerDefinition()
     }
 
     updateParametersTree();
+
+    // После успешной загрузки обновляем путь к файлу
+    m_lastXmlFilePath = fileToOpen;
+    Settings::getInstance().setValue("Logger/LastXmlFile", m_lastXmlFilePath);
+
     qDebug() << "Logger definition loaded successfully. Categories: " << m_parameters.size()
              << ", Parameters: " << m_parameterValues.size();
+    appendToLog(QString("Logger definition loaded successfully from %1. Categories: %2, Parameters: %3")
+                    .arg(m_lastXmlFilePath)
+                    .arg(m_parameters.size())
+                    .arg(m_parameterValues.size()));
 }
 
 void LoggerWindow::updateParametersTree()

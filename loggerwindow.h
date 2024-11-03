@@ -70,8 +70,9 @@ private slots:
     void onPreferencesTriggered(); // Обработчик открытия настроек
     void onFileLogButtonClicked(); // Обработчик нажатия кнопки записи в файл
     void updateTimePlot();
-    void loadLoggerDefinition();
+    void loadLoggerDefinition(const QString& fileName);
     void onSelectLogDirClicked();
+    void onLoadXMLClicked();
 
 private:
     void initializeUI(); // Инициализация UI
@@ -122,6 +123,8 @@ private:
     bool testAdapterConnection();
     QString m_lastLogDirectory;
     QFile m_logFile;
+    QString m_lastXmlFilePath;
+
 
 
     struct CategoryParameters {
