@@ -23,9 +23,9 @@
 #include <QQueue>
 #include "settings.h"
 
-namespace Ui {
-class LoggerWindow;
-}
+QT_BEGIN_NAMESPACE
+namespace Ui { class LoggerWindow; }
+QT_END_NAMESPACE
 
 // Структура для хранения диагностических запросов
 struct DiagRequest {
@@ -46,7 +46,7 @@ class LoggerWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit LoggerWindow(QWidget *parent = nullptr);
+     LoggerWindow(QWidget *parent = nullptr);
     ~LoggerWindow();
 
 signals:

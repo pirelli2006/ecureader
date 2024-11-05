@@ -29,7 +29,6 @@ SOURCES += \
     j2534.cpp \
     loggerdefinitionloader.cpp \
     loggerwindow.cpp \
-    mainwindow.cpp \
     parameter.cpp \
     parameterselectiondialog.cpp \
     parameterwidget.cpp \
@@ -45,7 +44,6 @@ HEADERS += \
     j2534_tactrix.h \
     loggerdefinitionloader.h \
     loggerwindow.h \
-    mainwindow.h \
     parameter.h \
     parameterconfig.h \
     parameterdefinition.h \
@@ -57,8 +55,7 @@ HEADERS += \
     settings.h
 
 FORMS += \
-    loggerwindow.ui \
-    mainwindow.ui
+    loggerwindow.ui
 
 # Определяем макросы для отладки
 CONFIG(debug, debug|release) {

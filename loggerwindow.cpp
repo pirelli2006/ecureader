@@ -44,34 +44,9 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
     m_readTimer(new QTimer(this)),
     m_isFileLogging(false)
 {
-    qDebug() << "Starting LoggerWindow constructor";
-
     ui->setupUi(this);
 
-
-    connect(ui->actionExit, &QAction::triggered, this, &QWidget::close);
-
-    // Настройка меню Settings
-    QMenu* settingsMenu = ui->menuSettings;
-    settingsMenu->addAction(ui->actionLoadXml);
-    settingsMenu->addAction(ui->actionSelectLogDir);
-
-    // Настройка меню File
-    QMenu* fileMenu = ui->menuFile;
-    fileMenu->addSeparator();
-    fileMenu->addAction(ui->actionExit);
-
-    // Обновление состояния меню
-    menuBar()->setVisible(true);
-    menuBar()->setEnabled(true);
-
-
-    qDebug() << "MenuBar geometry:" << ui->menuBar->geometry();
-    qDebug() << "MenuBar is visible:" << ui->menuBar->isVisible();
-    qDebug() << "MenuBar is enabled:" << ui->menuBar->isEnabled();
-
-
-    qDebug() << "UI setup completed";
+    initializeUI();
 
     // Используем существующий QCustomPlot из формы
     m_plot = ui->plotWidget;
@@ -79,17 +54,11 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
         qCritical() << "Failed to get plot widget!";
         return;
     }
-    qDebug() << "Plot assigned";
-
-    setupPlot();
-    qDebug() << "Plot setup completed";
 
     setupLoggerDefinitionLoader();
 
-    // Настраиваем комбобокс режима отображения
-    ui->displayModeComboBox->clear();
-    ui->displayModeComboBox->addItem("Widgets");
-    ui->displayModeComboBox->addItem("Plot");
+    // Синхронизация начального состояния отображения
+    onDisplayModeChanged(ui->displayModeComboBox->currentIndex());
 
     connect(ui->actionLoadXml, &QAction::triggered, this, &LoggerWindow::onLoadXMLClicked);
     connect(ui->actionSelectLogDir, &QAction::triggered, this, &LoggerWindow::onSelectLogDirClicked);
@@ -99,26 +68,12 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
     connect(this, &LoggerWindow::connectionEstablished, this, &LoggerWindow::onConnectionEstablished);
     connect(ui->fileLogButton, &QPushButton::clicked, this, &LoggerWindow::onFileLogButtonClicked);
     connect(this, &LoggerWindow::connectionEstablished, this, &LoggerWindow::onConnectionEstablished);
+    connect(ui->actionExit, &QAction::triggered, this, &QWidget::close);
 
-    // Синхронизация начального состояния отображения
-    onDisplayModeChanged(ui->displayModeComboBox->currentIndex());
-
-    qDebug() << "Display mode combo box setup completed";
-
-    initializeUI();
-    qDebug() << "UI initialization completed";
     m_isFileLogging = false;
     m_lastLogDirectory = Settings::getInstance().value("Logger/LastLogDirectory", QString()).toString();
 
-
-
     checkUIState();
-    qDebug() << "Constructor completed";
-
-    // Настройка начального состояния кнопок
-    ui->startButton->setEnabled(true);
-    ui->stopButton->setEnabled(false);
-    ui->fileLogButton->setEnabled(false);
     loadSettings();
 
 }
@@ -157,19 +112,6 @@ LoggerWindow::~LoggerWindow()
     }
 }
 
-void LoggerWindow::closeEvent(QCloseEvent *event)
-{
-    if (m_isLogging) {
-        onStopLoggingClicked();
-    }
-    if (m_isFileLogging) {
-        m_csvFile.close();
-    }
-    saveSettings();
-    emit closed();
-    event->accept();
-}
-
 void LoggerWindow::initializeUI()
 {
     // Инициализация указателей на UI элементы
@@ -184,24 +126,57 @@ void LoggerWindow::initializeUI()
     // Загрузка адаптеров
     loadAdapters();
 
-    // Настройка начального состояния
-    m_stopButton->setEnabled(false);
-    m_fileLogButton->setEnabled(false);
+    // Настройка начального состояния кнопок
+    ui->startButton->setEnabled(true);
+    ui->stopButton->setEnabled(false);
+    ui->fileLogButton->setEnabled(false);
 
     // Настройка комбобокса режима отображения
     ui->displayModeComboBox->clear();
     ui->displayModeComboBox->addItem("Widgets");
     ui->displayModeComboBox->addItem("Plot");
 
-    // Инициализация области параметров
-    m_parametersContainer = new QWidget(this);
-    m_parametersLayout = new QVBoxLayout(m_parametersContainer);
+    // Используем существующие виджеты из UI файла
+    m_parametersContainer = ui->leftPanelContainer;
+    m_parametersLayout = qobject_cast<QVBoxLayout*>(ui->leftPanelContainer->layout());
+
+    if (m_parametersLayout) {
+        m_parametersLayout->setAlignment(Qt::AlignTop);
+    }
 
     // Настройка дерева параметров
-    m_parametersTree->setColumnCount(4);
-    m_parametersTree->setHeaderLabels(QStringList() << "" << "Parameter" << "Value" << "Units");
+    m_parametersTree = ui->parametersTree;
+    m_parametersTree->setColumnCount(3);
+    m_parametersTree->setHeaderLabels(QStringList() << "" << "Parameter" << "Units");
+    m_parametersTree->setColumnWidth(0, 30);  // Ширина первой колонки
+    m_parametersTree->setColumnWidth(1, 150); // Ширина второй колонки
+    m_parametersTree->setColumnWidth(2, 70);  // Ширина третьей колонки
+
+    // Установка политики размера для дерева параметров
+    m_parametersTree->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    // Настройка политики размера для контейнера параметров
+    m_parametersContainer->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+
+    // Настройка splitter
+    ui->mainSplitter->setStretchFactor(0, 1); // левая панель
+    ui->mainSplitter->setStretchFactor(1, 2); // правая панель
 
     setupPlot();
+}
+
+
+void LoggerWindow::closeEvent(QCloseEvent *event)
+{
+    if (m_isLogging) {
+        onStopLoggingClicked();
+    }
+    if (m_isFileLogging) {
+        m_csvFile.close();
+    }
+    saveSettings();
+    emit closed();
+    event->accept();
 }
 
 void LoggerWindow::updateTimePlot()
@@ -211,6 +186,7 @@ void LoggerWindow::updateTimePlot()
     m_plot->xAxis->setRange(currentTime - 30, currentTime);
     m_plot->replot();
 }
+
 void LoggerWindow::onPreferencesTriggered()
 {
     // Создание и отображение диалога настроек
@@ -372,7 +348,7 @@ void LoggerWindow::loadSettings()
     int displayMode = settings.value("LoggerWindow/DisplayMode", 0).toInt();
     qDebug() << "Loading DisplayMode:" << displayMode;
     ui->displayModeComboBox->setCurrentIndex(displayMode);
-    onDisplayModeChanged(displayMode);
+    //onDisplayModeChanged(displayMode);
 
     // Загрузка текущего адаптера
     QString savedAdapter = settings.value("LoggerWindow/CurrentAdapter", QString()).toString();
@@ -668,7 +644,6 @@ void LoggerWindow::onAdapterChanged(const QString& adapter)
     emit adapterInitialized(adapter);
 }
 
-
 bool LoggerWindow::testAdapterConnection()
 {
     if (!m_j2534 || !m_deviceId) {
@@ -781,8 +756,6 @@ void LoggerWindow::onSelectLogDirClicked()
         appendToLog(QString("Log directory set to: %1").arg(m_lastLogDirectory));
     }
 }
-
-
 
 QByteArray LoggerWindow::readDiagnosticResponse(int timeout)
 {
@@ -972,7 +945,6 @@ void LoggerWindow::checkUIState()
     qDebug() << "adapterComboBox:" << (ui->adapterComboBox != nullptr);
     qDebug() << "Current display mode index:" << ui->displayModeComboBox->currentIndex();
 }
-
 
 void LoggerWindow::onConnectionEstablished()
 {

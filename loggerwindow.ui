@@ -19,107 +19,162 @@
   <property name="windowTitle">
    <string>ECU Logger</string>
   </property>
-  <property name="styleSheet">
+   <property name="styleSheet">
    <string notr="true">
    QMainWindow {
-    background-color: #f0f0f0;
-  }
-  QWidget {
-    font-family: &quot;Segoe UI&quot;, sans-serif;
-    font-size: 9pt;
-  }
-  QComboBox {
-    border: 1px solid #cccccc;
-    border-radius: 2px;
-    padding: 2px 5px;
-    background-color: white;
-    min-height: 20px;
-  }
-  QComboBox:hover {
-    border: 1px solid #999999;
-  }
-  QComboBox:disabled {
-    background-color: #f0f0f0;
-    color: #666666;
-  }
-  QPushButton {
-    background-color: #4a90e2;
-    color: white;
-    border: 1px solid #357abd;
-    padding: 4px 10px;
-    border-radius: 2px;
-    font-weight: bold;
-    min-width: 80px;
-    min-height: 25px;
-  }
-  QPushButton:hover {
-    background-color: #357abd;
-    border: 1px solid #2d6da3;
-  }
-  QPushButton:pressed {
-    background-color: #2d6da3;
-    padding-top: 5px;
-    padding-bottom: 3px;
-  }
-  QPushButton:disabled {
-    background-color: #cccccc;
-    border: 1px solid #999999;
-    color: #666666;
-  }
-  QTextEdit {
-    background-color: #ffffff;
-    border: 1px solid #cccccc;
-    border-radius: 2px;
-    padding: 5px;
-    font-family: Consolas, Monaco, monospace;
-    font-size: 9pt;
-  }
-  QStatusBar {
-    background-color: #f8f8f8;
-    color: #666666;
-  }
-  QMenuBar {
-    background-color: #f0f0f0;
-    min-height: 25px;
-}
-
-QMenuBar::item {
-    padding: 5px 10px;
-    background-color: transparent;
-    color: #333333;
-}
-
-QMenuBar::item:selected,
-QMenuBar::item:pressed {
-    background-color: #e0e0e0;
-    color: #000000;
-}
-
-QMenu {
-    background-color: #ffffff;
-    border: 1px solid #cccccc;
-    padding: 2px;
-}
-
-QMenu::item {
-    padding: 4px 20px 4px 20px;
-    min-width: 120px;
-}
-
-QMenu::item:selected {
-    background-color: #e0e0e0;
-}
-
-QMenu::separator {
-    height: 1px;
-    background-color: #cccccc;
-    margin: 2px 0;
-}
-  </string>
-  </property>
-  <widget class="QWidget" name="centralwidget">
+      background-color: #f5f5f5;
+    }
+    
+    QWidget {
+      font-family: &quot;Segoe UI&quot;, Arial, sans-serif;
+      font-size: 10pt;
+    }
+    
+    QMenuBar {
+      background-color: #FFFFFF;
+      min-height: 25px;
+      padding: 2px;
+    }
+    
+    QMenuBar::item {
+      background-color: transparent;
+      color: #000000;
+      padding: 6px 10px;
+      margin: 1px;
+      font-size: 11pt;
+    }
+    
+    QMenuBar::item:selected {
+      background-color: #4a90e2;
+      color: #FFFFFF;
+    }
+    
+    QMenu {
+      background-color: #FFFFFF;
+      padding: 5px;
+    }
+    
+    QMenu::item {
+      background-color: transparent;
+      color: #000000;
+      padding: 6px 20px;
+      margin: 1px;
+      font-size: 10pt;
+      min-width: 150px;
+    }
+    
+    QMenu::item:selected {
+      background-color: #4a90e2;
+      color: #FFFFFF;
+    }
+    
+    QGroupBox {
+      border: 1px solid #cccccc;
+      border-radius: 3px;
+      margin-top: 5px;
+      padding: 5px;
+	  padding-top: 7px;
+      background-color: #ffffff;
+    }
+    
+    QGroupBox::title {
+      subcontrol-origin: margin;
+	  subcontrol-position: top left; 
+	  left: 7px;
+      padding: 0 3px;
+	  top: -3px;
+      
+      color: #444444;
+    }
+    
+    QComboBox, QLineEdit {
+      border: 1px solid #cccccc;
+      border-radius: 2px;
+      padding: 4px;
+      background: white;
+      min-height: 22px;
+    }
+    
+    QComboBox:hover, QLineEdit:hover {
+      border-color: #4a90e2;
+    }
+    
+    QComboBox:focus, QLineEdit:focus {
+      border-color: #4a90e2;
+      border-width: 2px;
+    }
+    
+    QPushButton {
+      background-color: #4a90e2;
+      color: white;
+      border: none;
+      border-radius: 2px;
+      padding: 6px 12px;
+      font-weight: bold;
+      min-width: 80px;
+      min-height: 22px;
+    }
+    
+    QPushButton:hover {
+      background-color: #357abd;
+    }
+    
+    QPushButton:pressed {
+      background-color: #2d6da3;
+    }
+    
+    QPushButton:disabled {
+      background-color: #cccccc;
+      color: #666666;
+    }
+    
+    QTreeWidget, QTableWidget {
+      border: 1px solid #cccccc;
+      border-radius: 2px;
+      background-color: white;
+    }
+    
+    QTreeWidget::item, QTableWidget::item {
+      padding: 4px;
+    }
+    
+    QTreeWidget::item:hover, QTableWidget::item:hover {
+      background-color: #e6f2ff;
+    }
+    
+    QTreeWidget::item:selected, QTableWidget::item:selected {
+      background-color: #cce5ff;
+    }
+    
+    QTabWidget::pane {
+      border: 1px solid #cccccc;
+      border-radius: 2px;
+      background: white;
+    }
+    
+    QTabBar::tab {
+      background: #f0f0f0;
+      border: 1px solid #cccccc;
+      border-bottom: none;
+      border-top-left-radius: 2px;
+      border-top-right-radius: 2px;
+      padding: 6px 12px;
+      margin-right: 2px;
+    }
+    
+    QTabBar::tab:hover {
+      background: #e0e0e0;
+    }
+    
+    QTabBar::tab:selected {
+      background: white;
+      border-bottom: 1px solid white;
+    }
+   </string>
+</property>
+   <widget class="QWidget" name="centralwidget">
    <property name="sizePolicy">
-    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
      <horstretch>0</horstretch>
      <verstretch>0</verstretch>
     </sizepolicy>
@@ -143,7 +198,7 @@ QMenu::separator {
        </size>
       </property>
       <property name="title">
-       <string>Connection Control</string>
+       <string/>
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0,0,0,0,0,0">
        <property name="leftMargin">
@@ -179,8 +234,8 @@ QMenu::separator {
          </property>
          <property name="minimumSize">
           <size>
-           <width>102</width>
-           <height>35</height>
+           <width>132</width>
+           <height>46</height>
           </size>
          </property>
          <property name="maximumSize">
@@ -343,62 +398,32 @@ QMenu::separator {
     </item>
    </layout>
   </widget>
- <widget class="QMenuBar" name="menuBar">
-  <property name="geometry">
+  <widget class="QStatusBar" name="statusBar"/>
+  <widget class="QMenuBar" name="menuBar">
+   <property name="geometry">
     <rect>
-      <x>0</x>
-      <y>0</y>
-      <width>1100</width>
-      <height>30</height>
+     <x>0</x>
+     <y>0</y>
+     <width>1100</width>
+     <height>20</height>
     </rect>
-  </property>
-  <property name="visible">
-   <bool>true</bool>
-  </property>
-  <property name="minimumSize">
-    <size>
-      <width>0</width>
-      <height>30</height>
-    </size>
-  </property>
-
+   </property>
    <widget class="QMenu" name="menuFile">
-  <property name="geometry">
-    <rect>
-      <x>0</x>
-      <y>0</y>
-      <width>200</width>
-      <height>150</height>
-    </rect>
-  </property>
-  <property name="minimumWidth">
-    <number>200</number>
-  </property>
-  <property name="title">
-    <string>File</string>
-  </property>
-</widget>
-
-<widget class="QMenu" name="menuSettings">
-  <property name="geometry">
-    <rect>
-      <x>0</x>
-      <y>0</y>
-      <width>200</width>
-      <height>150</height>
-    </rect>
-  </property>
-  <property name="minimumWidth">
-    <number>200</number>
-  </property>
-  <property name="title">
-    <string>Settings</string>
-  </property>
-</widget>
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionExit"/>
+   </widget>
+   <widget class="QMenu" name="menuSettings">
+    <property name="title">
+     <string>Settings</string>
+    </property>
+    <addaction name="actionLoadXml"/>
+    <addaction name="actionSelectLogDir"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuSettings"/>
   </widget>
-  <widget class="QStatusBar" name="statusBar"/>
   <action name="actionSaveLog">
    <property name="text">
     <string>Save Log...</string>
@@ -407,11 +432,6 @@ QMenu::separator {
   <action name="actionExit">
    <property name="text">
     <string>Exit</string>
-   </property>
-  </action>
-  <action name="actionPreferences">
-   <property name="text">
-    <string>Preferences...</string>
    </property>
   </action>
   <action name="actionLoadXml">
@@ -423,7 +443,7 @@ QMenu::separator {
    <property name="text">
     <string>Set Log Dir...</string>
    </property>
-  </action>
+  </action>  
  </widget>
  <customwidgets>
   <customwidget>
@@ -435,4 +455,54 @@ QMenu::separator {
  </customwidgets>
  <resources/>
  <connections/>
+  <connections>
+  <connection>
+   <sender>actionExit</sender>
+   <signal>triggered()</signal>
+   <receiver>LoggerWindow</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>549</x>
+     <y>249</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionLoadXml</sender>
+   <signal>triggered()</signal>
+   <receiver>LoggerWindow</receiver>
+   <slot>loadXmlDefinition()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>549</x>
+     <y>249</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionSelectLogDir</sender>
+   <signal>triggered()</signal>
+   <receiver>LoggerWindow</receiver>
+   <slot>selectLogDirectory()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>549</x>
+     <y>249</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>
