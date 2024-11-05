@@ -6,239 +6,261 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1024</width>
-    <height>768</height>
+    <width>1100</width>
+    <height>500</height>
    </rect>
   </property>
+  <property name="minimumSize">
+   <size>
+    <width>1100</width>
+    <height>400</height>
+   </size>
+  </property>
   <property name="windowTitle">
-   <string>Advanced Logger</string>
+   <string>ECU Logger</string>
   </property>
   <property name="styleSheet">
    <string notr="true">
-    QMainWindow {
-        background-color: #f0f0f0;
-    }
-    QGroupBox {
-        background-color: #ffffff;
-        border: 1px solid #cccccc;
-        border-radius: 5px;
-        margin-top: 10px;
-        font-weight: bold;
-    }
-    QGroupBox::title {
-        subcontrol-origin: margin;
-        left: 10px;
-        padding: 0 5px;
-        color: #333333;
-    }
-    QPushButton {
+   QMainWindow {
+    background-color: #f0f0f0;
+  }
+  QWidget {
+    font-family: &quot;Segoe UI&quot;, sans-serif;
+    font-size: 9pt;
+  }
+  QComboBox {
+    border: 1px solid #cccccc;
+    border-radius: 2px;
+    padding: 2px 5px;
+    background-color: white;
+    min-height: 20px;
+  }
+  QComboBox:hover {
+    border: 1px solid #999999;
+  }
+  QComboBox:disabled {
+    background-color: #f0f0f0;
+    color: #666666;
+  }
+  QPushButton {
     background-color: #4a90e2;
     color: white;
     border: 1px solid #357abd;
-    padding: 5px 15px;
-    border-radius: 3px;
+    padding: 4px 10px;
+    border-radius: 2px;
     font-weight: bold;
     min-width: 80px;
-    min-height: 20px;
-}
-
-QPushButton:hover {
+    min-height: 25px;
+  }
+  QPushButton:hover {
     background-color: #357abd;
     border: 1px solid #2d6da3;
-}
-
-QPushButton:pressed {
+  }
+  QPushButton:pressed {
     background-color: #2d6da3;
-    padding-top: 6px;
-    padding-bottom: 4px;
-}
-
-QPushButton:disabled {
+    padding-top: 5px;
+    padding-bottom: 3px;
+  }
+  QPushButton:disabled {
     background-color: #cccccc;
     border: 1px solid #999999;
     color: #666666;
+  }
+  QTextEdit {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 2px;
+    padding: 5px;
+    font-family: Consolas, Monaco, monospace;
+    font-size: 9pt;
+  }
+  QStatusBar {
+    background-color: #f8f8f8;
+    color: #666666;
+  }
+  QMenuBar {
+    background-color: #f0f0f0;
+    min-height: 25px;
 }
 
-QPushButton#loadXmlButton {
-    background-color: #5cb85c;
-    border: 1px solid #4cae4c;
+QMenuBar::item {
+    padding: 5px 10px;
+    background-color: transparent;
+    color: #333333;
 }
 
-QPushButton#loadXmlButton:hover {
-    background-color: #449d44;
-    border: 1px solid #398439;
+QMenuBar::item:selected,
+QMenuBar::item:pressed {
+    background-color: #e0e0e0;
+    color: #000000;
 }
 
-QPushButton#selectLogDirButton {
-    background-color: #5bc0de;
-    border: 1px solid #46b8da;
+QMenu {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    padding: 2px;
 }
 
-QPushButton#selectLogDirButton:hover {
-    background-color: #31b0d5;
-    border: 1px solid #269abc;
+QMenu::item {
+    padding: 4px 20px 4px 20px;
+    min-width: 120px;
 }
 
-QPushButton#selectLogDirButton:pressed {
-    background-color: #269abc;
+QMenu::item:selected {
+    background-color: #e0e0e0;
 }
 
-QPushButton#loadXmlButton:pressed {
-    background-color: #398439;
+QMenu::separator {
+    height: 1px;
+    background-color: #cccccc;
+    margin: 2px 0;
 }
-    QComboBox {
-        border: 1px solid #cccccc;
-        border-radius: 3px;
-        padding: 5px;
-        background-color: white;
-        min-height: 20px;
-    }
-    QComboBox:hover {
-        border: 1px solid #999999;
-    }
-    QComboBox:disabled {
-        background-color: #f0f0f0;
-        color: #666666;
-    }
-    QTreeWidget {
-        border: 1px solid #cccccc;
-        border-radius: 3px;
-        background-color: white;
-        alternate-background-color: #f9f9f9;
-    }
-    QTreeWidget::item {
-        height: 25px;
-    }
-    QTreeWidget::item:selected {
-        background-color: #e8f0fe;
-        color: #000000;
-    }
-    QTabWidget::pane {
-        border: 1px solid #cccccc;
-        border-radius: 3px;
-        background-color: white;
-        top: -1px;
-    }
-    QTabBar::tab {
-        background-color: #e0e0e0;
-        border: 1px solid #cccccc;
-        border-bottom-color: #cccccc;
-        border-top-left-radius: 3px;
-        border-top-right-radius: 3px;
-        padding: 6px 15px;
-        margin-right: 2px;
-    }
-    QTabBar::tab:selected {
-        background-color: white;
-        border-bottom-color: white;
-    }
-    QTabBar::tab:hover:!selected {
-        background-color: #eeeeee;
-    }
-    QTextEdit {
-        background-color: white;
-        border: 1px solid #cccccc;
-        border-radius: 3px;
-    }
-    QMenuBar {
-        background-color: #f8f8f8;
-        border-bottom: 1px solid #cccccc;
-    }
-    QMenuBar::item {
-        padding: 5px 10px;
-    }
-    QMenuBar::item:selected {
-        background-color: #e8e8e8;
-    }
-    QToolBar {
-        background-color: #f8f8f8;
-        border-bottom: 1px solid #cccccc;
-        spacing: 5px;
-    }
-    QStatusBar {
-        background-color: #f8f8f8;
-        color: #666666;
-    }
-    QLabel {
-        color: #333333;
-    }
-   </string>
+  </string>
   </property>
-  
-  
-
-  
-  
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout_2">
     <item>
-     <widget class="QSplitter" name="splitter">
+     <widget class="QGroupBox" name="topPanel">
+      <property name="enabled">
+       <bool>true</bool>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>16777215</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <property name="title">
+       <string>Connection Control</string>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0,0,0,0,0,0">
+       <property name="leftMargin">
+        <number>6</number>
+       </property>
+       <property name="topMargin">
+        <number>6</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="interfaceLabel">
+         <property name="text">
+          <string>Interface:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="adapterComboBox"/>
+       </item>
+       <item>
+        <widget class="QPushButton" name="startButton">
+         <property name="text">
+          <string>Connect</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="stopButton">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>102</width>
+           <height>35</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Disconnect</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="fileLogButton">
+         <property name="text">
+          <string>Start Log</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="displayModeLabel">
+         <property name="text">
+          <string>Display Mode:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="displayModeComboBox"/>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QSplitter" name="mainSplitter">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
-      <widget class="QWidget" name="leftPanel" native="true">
-       <layout class="QVBoxLayout" name="verticalLayout_2">
-        <item>
-         <widget class="QGroupBox" name="connectionGroup">
-          <property name="title">
-           <string>Connection</string>
-          </property>
-          <layout class="QGridLayout" name="gridLayout">
-           <item row="0" column="0">
-            <widget class="QLabel" name="label">
-             <property name="text">
-              <string>Interface:</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QComboBox" name="adapterComboBox"/>
-           </item>
-           <item row="1" column="0" colspan="2">
-            <layout class="QHBoxLayout" name="horizontalLayout">
-             <item>
-              <widget class="QPushButton" name="startButton">
-               <property name="text">
-                <string>Start</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="stopButton">
-               <property name="text">
-                <string>Stop</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="fileLogButton">
-               <property name="text">
-                <string>Start File Log</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-          </layout>
-         </widget>
-        </item>
+      <widget class="QWidget" name="leftPanelContainer">
+       <layout class="QVBoxLayout" name="verticalLayout_left">
         <item>
          <widget class="QGroupBox" name="parametersGroup">
           <property name="title">
            <string>Parameters</string>
           </property>
-          <layout class="QVBoxLayout" name="verticalLayout_3">
+          <layout class="QVBoxLayout" name="verticalLayout_parameters">
            <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_2">
+            <layout class="QHBoxLayout" name="horizontalLayout_filter">
              <item>
-              <widget class="QLabel" name="label_2">
+              <widget class="QLabel" name="filterLabel">
                <property name="text">
-                <string>Display Mode:</string>
+                <string>Filter:</string>
                </property>
               </widget>
              </item>
              <item>
-              <widget class="QComboBox" name="displayModeComboBox"/>
+              <widget class="QLineEdit" name="filterEdit">
+               <property name="placeholderText">
+                <string>Enter filter text...</string>
+               </property>
+              </widget>
              </item>
             </layout>
            </item>
@@ -246,17 +268,7 @@ QPushButton#loadXmlButton:pressed {
             <widget class="QTreeWidget" name="parametersTree">
              <column>
               <property name="text">
-               <string/>
-              </property>
-             </column>
-             <column>
-              <property name="text">
-               <string>Parameter</string>
-              </property>
-             </column>
-             <column>
-              <property name="text">
-               <string>Value</string>
+               <string>Name</string>
               </property>
              </column>
              <column>
@@ -271,8 +283,8 @@ QPushButton#loadXmlButton:pressed {
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="rightPanel" native="true">
-       <layout class="QVBoxLayout" name="verticalLayout_4">
+      <widget class="QWidget" name="rightPanelContainer">
+       <layout class="QVBoxLayout" name="verticalLayout_right">
         <item>
          <widget class="QTabWidget" name="tabWidget">
           <property name="currentIndex">
@@ -280,26 +292,40 @@ QPushButton#loadXmlButton:pressed {
           </property>
           <widget class="QWidget" name="dashboardTab">
            <attribute name="title">
-            <string>Dashboard</string>
+            <string>Chart</string>
            </attribute>
-           <layout class="QVBoxLayout" name="verticalLayout_5">
+           <layout class="QVBoxLayout" name="verticalLayout_chart">
             <item>
-             <widget class="QCustomPlot" name="plotWidget" native="true">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
+             <widget class="QCustomPlot" name="plotWidget" native="true"/>
+            </item>
+           </layout>
+          </widget>
+          <widget class="QWidget" name="valuesTab">
+           <attribute name="title">
+            <string>Values</string>
+           </attribute>
+           <layout class="QVBoxLayout" name="verticalLayout_values">
+            <item>
+             <widget class="QTableWidget" name="valuesTable">
+              <column>
+               <property name="text">
+                <string>Parameter</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>Units</string>
+               </property>
+              </column>
              </widget>
             </item>
            </layout>
           </widget>
-          <widget class="QWidget" name="logTab">
+          <widget class="QWidget" name="terminalTab">
            <attribute name="title">
-            <string>Log</string>
+            <string>Terminal</string>
            </attribute>
-           <layout class="QVBoxLayout" name="verticalLayout_6">
+           <layout class="QVBoxLayout" name="verticalLayout_terminal">
             <item>
              <widget class="QTextEdit" name="logTextEdit">
               <property name="readOnly">
@@ -317,38 +343,62 @@ QPushButton#loadXmlButton:pressed {
     </item>
    </layout>
   </widget>
-  <widget class="QMenuBar" name="menubar">
-   <property name="geometry">
+ <widget class="QMenuBar" name="menuBar">
+  <property name="geometry">
     <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>1024</width>
-     <height>22</height>
+      <x>0</x>
+      <y>0</y>
+      <width>1100</width>
+      <height>30</height>
     </rect>
-   </property>
+  </property>
+  <property name="visible">
+   <bool>true</bool>
+  </property>
+  <property name="minimumSize">
+    <size>
+      <width>0</width>
+      <height>30</height>
+    </size>
+  </property>
+
    <widget class="QMenu" name="menuFile">
-    <property name="title">
-     <string>File</string>
-    </property>
-    <addaction name="actionLoadXml"/>
-    <addaction name="actionSaveLog"/>
-    <addaction name="separator"/>
-    <addaction name="actionExit"/>
-   </widget>
-   <widget class="QMenu" name="menuSettings">
-    <property name="title">
-     <string>Settings</string>
-    </property>
-    <addaction name="actionPreferences"/>
-    <addaction name="actionLoadXml"/>  
-    <addaction name="actionSelectLogDir"/> 
-   </widget>
+  <property name="geometry">
+    <rect>
+      <x>0</x>
+      <y>0</y>
+      <width>200</width>
+      <height>150</height>
+    </rect>
+  </property>
+  <property name="minimumWidth">
+    <number>200</number>
+  </property>
+  <property name="title">
+    <string>File</string>
+  </property>
+</widget>
+
+<widget class="QMenu" name="menuSettings">
+  <property name="geometry">
+    <rect>
+      <x>0</x>
+      <y>0</y>
+      <width>200</width>
+      <height>150</height>
+    </rect>
+  </property>
+  <property name="minimumWidth">
+    <number>200</number>
+  </property>
+  <property name="title">
+    <string>Settings</string>
+  </property>
+</widget>
    <addaction name="menuFile"/>
    <addaction name="menuSettings"/>
   </widget>
-  <widget class="QToolBar" name="toolBar">
-   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QStatusBar" name="statusBar"/>
   <action name="actionSaveLog">
    <property name="text">
     <string>Save Log...</string>
@@ -364,12 +414,12 @@ QPushButton#loadXmlButton:pressed {
     <string>Preferences...</string>
    </property>
   </action>
-  <action name="actionLoadXml"> 
+  <action name="actionLoadXml">
    <property name="text">
     <string>Load XML Definition...</string>
    </property>
   </action>
-  <action name="actionSelectLogDir"> 
+  <action name="actionSelectLogDir">
    <property name="text">
     <string>Set Log Dir...</string>
    </property>
@@ -379,7 +429,7 @@ QPushButton#loadXmlButton:pressed {
   <customwidget>
    <class>QCustomPlot</class>
    <extends>QWidget</extends>
-   <header>qcustomplot.h</header>
+   <header location="global">qcustomplot.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

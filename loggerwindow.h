@@ -127,6 +127,7 @@ private:
 
 
 
+
     struct CategoryParameters {
         QString name;
         QVector<ParameterDefinition> parameters;

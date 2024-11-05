@@ -14,12 +14,12 @@
    <string>ECU Loader</string>
   </property>
   <property name="styleSheet">
- <string notr="true">
+   <string notr="true">
   QMainWindow {
     background-color: #f0f0f0;
   }
   QWidget {
-    font-family: "Segoe UI", sans-serif;
+    font-family: &quot;Segoe UI&quot;, sans-serif;
     font-size: 9pt;
   }
   QComboBox {
@@ -73,7 +73,7 @@
     color: #666666;
   }
  </string>
-</property>
+  </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
@@ -94,28 +94,28 @@
        </item>
        <item>
         <widget class="QPushButton" name="IdentificationButton">
-		<property name="enabled">
-		<bool>true</bool>
-		</property>
-		<property name="text">
-		<string>Identification</string>
-		</property>
-		<property name="icon">
-		<iconset>
-		<normaloff>icons/id.png</normaloff>icons/id.png</iconset>
-		</property>
-		</widget>
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="text">
+          <string>Identification</string>
+         </property>
+         <property name="icon">
+          <iconset>
+           <normaloff>icons/id.png</normaloff>icons/id.png</iconset>
+         </property>
+        </widget>
        </item>
        <item>
         <widget class="QPushButton" name="LoggerButton">
-		<property name="text">
-		<string>Logger</string>
-		</property>
-		<property name="icon">
-		<iconset>
-		<normaloff>icons/logger.png</normaloff>icons/logger.png</iconset>
-		</property>
-		</widget>
+         <property name="text">
+          <string>Logger</string>
+         </property>
+         <property name="icon">
+          <iconset>
+           <normaloff>icons/logger.png</normaloff>icons/logger.png</iconset>
+         </property>
+        </widget>
        </item>
        <item>
         <spacer name="horizontalSpacer">
@@ -144,7 +144,7 @@
          <property name="font">
           <font>
            <family>Consolas</family>
-           <pointsize>10</pointsize>
+           <pointsize>9</pointsize>
           </font>
          </property>
          <property name="lineWrapMode">
@@ -161,6 +161,40 @@
    </layout>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QMenuBar" name="menuBar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>800</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionExit"/>
+   </widget>
+   <widget class="QMenu" name="menuSettings">
+    <property name="title">
+     <string>Settings</string>
+    </property>
+    <addaction name="actionLoad_XML"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuSettings"/>
+  </widget>
+  <action name="actionExit">
+   <property name="text">
+    <string>Exit</string>
+   </property>
+  </action>
+  <action name="actionLoad_XML">
+   <property name="text">
+    <string>Load XML</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>

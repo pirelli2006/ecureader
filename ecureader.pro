@@ -1,10 +1,6 @@
 QT       += core gui widgets network serialport printsupport xml script qml
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-TARGET = ecureader
-TEMPLATE = app
-QT_VERSION = 5
-
 CONFIG += c++17
 
 # You can make your code fail to compile if it uses deprecated APIs.

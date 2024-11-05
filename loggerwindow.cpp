@@ -48,6 +48,29 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
 
     ui->setupUi(this);
 
+
+    connect(ui->actionExit, &QAction::triggered, this, &QWidget::close);
+
+    // Настройка меню Settings
+    QMenu* settingsMenu = ui->menuSettings;
+    settingsMenu->addAction(ui->actionLoadXml);
+    settingsMenu->addAction(ui->actionSelectLogDir);
+
+    // Настройка меню File
+    QMenu* fileMenu = ui->menuFile;
+    fileMenu->addSeparator();
+    fileMenu->addAction(ui->actionExit);
+
+    // Обновление состояния меню
+    menuBar()->setVisible(true);
+    menuBar()->setEnabled(true);
+
+
+    qDebug() << "MenuBar geometry:" << ui->menuBar->geometry();
+    qDebug() << "MenuBar is visible:" << ui->menuBar->isVisible();
+    qDebug() << "MenuBar is enabled:" << ui->menuBar->isEnabled();
+
+
     qDebug() << "UI setup completed";
 
     // Используем существующий QCustomPlot из формы
