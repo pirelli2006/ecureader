@@ -5,6 +5,16 @@
 #include <QString>
 #include <QMetaType>
 #include <QVector>
+#include <QList>
+
+struct ConversionDefinition {
+    QString units;
+    QString expr;
+    QString format;
+    QString gauge_min;
+    QString gauge_max;
+    QString gauge_step;
+};
 
 struct ParameterDefinition {
     QString category;
@@ -20,8 +30,11 @@ struct ParameterDefinition {
     float max;
     float step;
     quint32 value;
+    bool selected = false;
+
+    QList<ConversionDefinition> conversions;
 };
 
-Q_DECLARE_METATYPE(ParameterDefinition)  // Добавьте эту строку для использования в QVariant
+Q_DECLARE_METATYPE(ParameterDefinition)
 
 #endif // PARAMETERDEFINITION_H

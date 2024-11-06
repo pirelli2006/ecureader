@@ -19,9 +19,10 @@
 #include "loggerdefinitionloader.h"
 #include "parameterwidget.h"
 #include "parameterselectiondialog.h"
-#include "expression.h"
 #include <QQueue>
+#include <QDomNodeList>
 #include "settings.h"
+#include "expression.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class LoggerWindow; }
@@ -73,6 +74,8 @@ private slots:
     void loadLoggerDefinition(const QString& fileName);
     void onSelectLogDirClicked();
     void onLoadXMLClicked();
+    void onParameterUnitsChanged(int index);
+    void onParameterChecked(int state);
 
 private:
     void initializeUI(); // Инициализация UI
@@ -124,6 +127,8 @@ private:
     QString m_lastLogDirectory;
     QFile m_logFile;
     QString m_lastXmlFilePath;
+    void filterParameters(const QString& filterText);
+    void loadParameters(const QDomNodeList& parameterNodes, const QString& category);
 
 
 

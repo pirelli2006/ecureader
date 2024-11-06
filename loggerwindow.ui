@@ -476,7 +476,7 @@
    <sender>actionLoadXml</sender>
    <signal>triggered()</signal>
    <receiver>LoggerWindow</receiver>
-   <slot>loadXmlDefinition()</slot>
+   <slot>onLoadXMLClicked()</slot>
    <hints>
     <hint type="sourcelabel">
      <x>-1</x>
@@ -492,7 +492,7 @@
    <sender>actionSelectLogDir</sender>
    <signal>triggered()</signal>
    <receiver>LoggerWindow</receiver>
-   <slot>selectLogDirectory()</slot>
+   <slot>onSelectLogDirClicked()</slot>
    <hints>
     <hint type="sourcelabel">
      <x>-1</x>

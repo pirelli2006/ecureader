@@ -29,6 +29,10 @@
 #include <QDomElement>
 #include "parameter.h"
 #include "settings.h"
+#include <QComboBox>
+#include <QFile>
+#include <QDomDocument>
+#include <QMessageBox>
 
 
 LoggerWindow::LoggerWindow(QWidget *parent) :
@@ -47,6 +51,22 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
     ui->setupUi(this);
 
     initializeUI();
+
+    // Проверка создания виджета
+    if (!ui->parametersTree) {
+        qDebug() << "Failed to create parametersTree widget!";
+        return;
+    }
+
+    // Базовая настройка дерева
+    ui->parametersTree->setColumnCount(2);
+    ui->parametersTree->setHeaderLabels(QStringList() << "Parameter" << "Units");
+    ui->parametersTree->setAlternatingRowColors(true);
+    ui->parametersTree->setUniformRowHeights(true);
+    ui->parametersTree->setSortingEnabled(true);
+
+    // Подключаем сигнал изменения текста в поле фильтра
+    connect(ui->filterEdit, &QLineEdit::textChanged, this, &LoggerWindow::filterParameters);
 
     // Используем существующий QCustomPlot из формы
     m_plot = ui->plotWidget;
@@ -75,6 +95,15 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
 
     checkUIState();
     loadSettings();
+
+    // Загрузка XML при старте
+    m_lastXmlFilePath = Settings::getInstance().value("Logger/LastXmlFile", QString()).toString();
+    if (!m_lastXmlFilePath.isEmpty() && QFile::exists(m_lastXmlFilePath)) {
+        loadLoggerDefinition(m_lastXmlFilePath);
+    } else {
+        // Если сохраненный путь недействителен, показываем диалог выбора файла
+        onLoadXMLClicked();
+    }
 
 }
 
@@ -1515,13 +1544,39 @@ void LoggerWindow::setupLoggerDefinitionLoader()
     }
 }
 
-void LoggerWindow::loadLoggerDefinition(const QString& fileName)
+void LoggerWindow::filterParameters(const QString& filterText)
 {
+    for(int i = 0; i < ui->parametersTree->topLevelItemCount(); ++i) {
+        QTreeWidgetItem* categoryItem = ui->parametersTree->topLevelItem(i);
+        bool categoryVisible = false;
+
+        for(int j = 0; j < categoryItem->childCount(); ++j) {
+            QTreeWidgetItem* paramItem = categoryItem->child(j);
+            bool match = paramItem->text(0).contains(filterText, Qt::CaseInsensitive) ||
+                         paramItem->text(1).contains(filterText, Qt::CaseInsensitive);
+            paramItem->setHidden(!match);
+            if (match) {
+                categoryVisible = true;
+            }
+        }
+
+        categoryItem->setHidden(!categoryVisible);
+    }
+}
+
+void LoggerWindow::loadLoggerDefinition(const QString& fileName) {
+    static bool isLoading = false;
+    if (isLoading) return;
+    isLoading = true;
+
     QString fileToOpen = fileName.isEmpty() ? m_lastXmlFilePath : fileName;
+    qDebug() << "Attempting to open file:" << fileToOpen;
+
     QFile file(fileToOpen);
     if (!file.open(QIODevice::ReadOnly)) {
-        qCritical() << "Failed to open logger definition file: " << file.errorString();
-        appendToLog(QString("Failed to open logger definition file: %1").arg(file.errorString()));
+        qDebug() << "Failed to open file:" << file.errorString();
+        QMessageBox::critical(this, "Error", "Failed to open file: " + file.errorString());
+        isLoading = false;
         return;
     }
 
@@ -1530,127 +1585,214 @@ void LoggerWindow::loadLoggerDefinition(const QString& fileName)
     int errorLine, errorColumn;
     if (!doc.setContent(&file, &errorMsg, &errorLine, &errorColumn)) {
         file.close();
-        qCritical() << "Failed to parse XML content: " << errorMsg
-                    << " at line " << errorLine << ", column " << errorColumn;
-        appendToLog(QString("Failed to parse XML content: %1 at line %2, column %3")
-                        .arg(errorMsg).arg(errorLine).arg(errorColumn));
+        qDebug() << "Failed to parse XML:" << errorMsg << "at line" << errorLine << "column" << errorColumn;
+        isLoading = false;
         return;
     }
     file.close();
 
-    m_parameters.clear();
-    m_parameterValues.clear();
-
     QDomElement root = doc.documentElement();
-    if (root.tagName() != "logger_definition") {
-        qWarning() << "Unexpected root element: " << root.tagName();
-        appendToLog(QString("Unexpected root element: %1").arg(root.tagName()));
+    qDebug() << "Root element:" << root.tagName();
+
+    m_parameters.clear();
+
+    // Находим все протоколы
+    QDomNodeList protocolNodes = root.elementsByTagName("protocol");
+    for (int i = 0; i < protocolNodes.count(); ++i) {
+        QDomElement protocolElement = protocolNodes.at(i).toElement();
+        QString protocolId = protocolElement.attribute("id");
+
+        // --- Обработка parameters/parameter ---
+        QDomNodeList parametersList = protocolElement.elementsByTagName("parameters");
+        if (!parametersList.isEmpty()) {
+            QDomElement parametersElement = parametersList.at(0).toElement();
+            QDomNodeList parameterNodes = parametersElement.elementsByTagName("parameter");
+
+            qDebug() << "Found" << parameterNodes.count() << "parameters for protocol" << protocolId;
+
+            QString category = protocolId + " - Parameters";
+            loadParameters(parameterNodes, category);
+        }
+
+        // --- Обработка ecuparams/ecuparam ---
+        QDomNodeList ecuparamsList = protocolElement.elementsByTagName("ecuparams");
+        if (!ecuparamsList.isEmpty()) {
+            QDomElement ecuparamsElement = ecuparamsList.at(0).toElement();
+            QDomNodeList ecuparamNodes = ecuparamsElement.elementsByTagName("ecuparam");
+
+            qDebug() << "Found" << ecuparamNodes.count() << "ecuparams for protocol" << protocolId;
+
+            QString category = protocolId + " - RAM Params";
+            loadParameters(ecuparamNodes, category);
+        }
+
+        // --- Обработка switches/switch ---
+        QDomNodeList switchesList = protocolElement.elementsByTagName("switches");
+        if (!switchesList.isEmpty()) {
+            QDomElement switchesElement = switchesList.at(0).toElement();
+            QDomNodeList switchNodes = switchesElement.elementsByTagName("switch");
+
+            qDebug() << "Found" << switchNodes.count() << "switches for protocol" << protocolId;
+
+            QString category = protocolId + " - Switches";
+            loadParameters(switchNodes, category);
+        }
+    }
+
+    qDebug() << "Total categories loaded:" << m_parameters.size();
+    updateParametersTree();
+
+    isLoading = false;
+}
+
+void LoggerWindow::loadParameters(const QDomNodeList& parameterNodes, const QString& category) {
+    QList<ParameterDefinition> params;
+
+    for (int j = 0; j < parameterNodes.count(); ++j) {
+        QDomElement paramElement = parameterNodes.at(j).toElement();
+
+        ParameterDefinition param;
+        param.category = category;
+        param.id = paramElement.attribute("id");
+        param.name = paramElement.attribute("name");
+        param.description = paramElement.attribute("desc");
+
+        // ... (получение address) ...
+
+        // Получение conversions
+        QDomNodeList conversionsNodes = paramElement.elementsByTagName("conversions");
+        if (!conversionsNodes.isEmpty()) {
+            QDomElement conversionsElement = conversionsNodes.at(0).toElement();
+            QDomNodeList conversionNodes = conversionsElement.elementsByTagName("conversion");
+
+            for (int k = 0; k < conversionNodes.count(); ++k) {
+                QDomElement conversionElement = conversionNodes.at(k).toElement();
+                ConversionDefinition conversion;
+                conversion.units = conversionElement.attribute("units");
+                conversion.expr = conversionElement.attribute("expr");
+                conversion.format = conversionElement.attribute("format");
+                conversion.gauge_min = conversionElement.attribute("gauge_min");
+                conversion.gauge_max = conversionElement.attribute("gauge_max");
+                conversion.gauge_step = conversionElement.attribute("gauge_step");
+
+                param.conversions.append(conversion);
+
+                // !!! ДОБАВЛЕНО: Заполнение unitsList !!!
+                param.unitsList.append(QPair<QString, QString>(conversion.units, conversion.expr));
+
+                // Устанавливаем param.units из первой conversion
+                if (k == 0) {
+                    param.units = conversion.units;
+                    param.expression = conversion.expr;
+                    param.format = conversion.format;
+                }
+            }
+        }
+        params.append(param);
+    }
+
+    if (!params.isEmpty()) {
+        m_parameters[category] = params;
+    }
+}
+
+void LoggerWindow::updateParametersTree() {
+    if (!ui->parametersTree) {
+        qDebug() << "parametersTree widget is null!";
         return;
     }
 
-    QDomElement categoryElement = root.firstChildElement("category");
-    while (!categoryElement.isNull()) {
-        QString categoryName = categoryElement.attribute("name");
-        if (categoryName.isEmpty()) {
-            qWarning() << "Found category without name, skipping";
-            appendToLog("Found category without name, skipping");
-            categoryElement = categoryElement.nextSiblingElement("category");
-            continue;
-        }
-
-        QList<ParameterDefinition>& categoryParams = m_parameters[categoryName];
-
-        QDomElement paramElement = categoryElement.firstChildElement("parameter");
-        while (!paramElement.isNull()) {
-            ParameterDefinition param;
-            param.category = categoryName;
-            param.id = paramElement.attribute("id");
-
-            if (param.id.isEmpty()) {
-                qWarning() << "Found parameter without id in category " << categoryName << ", skipping";
-                appendToLog(QString("Found parameter without id in category %1, skipping").arg(categoryName));
-                paramElement = paramElement.nextSiblingElement("parameter");
-                continue;
-            }
-
-            param.name = paramElement.attribute("name");
-            param.description = paramElement.attribute("description");
-            param.address = paramElement.attribute("address");
-            param.units = paramElement.attribute("units");
-            param.expression = paramElement.attribute("expression");
-            param.format = paramElement.attribute("format");
-
-            bool ok;
-            float minVal = paramElement.attribute("min").toFloat(&ok);
-            if (ok) param.min = minVal;
-
-            float maxVal = paramElement.attribute("max").toFloat(&ok);
-            if (ok) param.max = maxVal;
-
-            float stepVal = paramElement.attribute("step").toFloat(&ok);
-            if (ok) param.step = stepVal;
-
-            QDomElement unitsElement = paramElement.firstChildElement("units");
-            while (!unitsElement.isNull()) {
-                QString value = unitsElement.attribute("value");
-                QString text = unitsElement.attribute("text");
-                param.unitsList.append(qMakePair(value, text));
-                unitsElement = unitsElement.nextSiblingElement("units");
-            }
-
-            categoryParams.append(param);
-
-            ParameterInfo paramInfo;
-            paramInfo.name = param.name;
-            paramInfo.units = param.units;
-            paramInfo.formula = param.expression;
-            m_parameterValues[param.id] = paramInfo;
-
-            paramElement = paramElement.nextSiblingElement("parameter");
-        }
-
-        categoryElement = categoryElement.nextSiblingElement("category");
-    }
-
-    updateParametersTree();
-
-    // После успешной загрузки обновляем путь к файлу
-    m_lastXmlFilePath = fileToOpen;
-    Settings::getInstance().setValue("Logger/LastXmlFile", m_lastXmlFilePath);
-
-    qDebug() << "Logger definition loaded successfully. Categories: " << m_parameters.size()
-             << ", Parameters: " << m_parameterValues.size();
-    appendToLog(QString("Logger definition loaded successfully from %1. Categories: %2, Parameters: %3")
-                    .arg(m_lastXmlFilePath)
-                    .arg(m_parameters.size())
-                    .arg(m_parameterValues.size()));
-}
-
-void LoggerWindow::updateParametersTree()
-{
     ui->parametersTree->clear();
+    ui->parametersTree->setColumnCount(3);
+    ui->parametersTree->setHeaderLabels(QStringList() << "Select" << "Parameter" << "Units"); // Изменен порядок
+
+    qDebug() << "Updating tree with" << m_parameters.count() << "categories";
 
     for (auto it = m_parameters.constBegin(); it != m_parameters.constEnd(); ++it) {
+        QString category = it.key();
         QTreeWidgetItem* categoryItem = new QTreeWidgetItem(ui->parametersTree);
-        categoryItem->setText(0, it.key());
+        categoryItem->setText(0, category);
 
         const QList<ParameterDefinition>& params = it.value();
-        for (const auto& param : params) {
-            QTreeWidgetItem* paramItem = new QTreeWidgetItem(categoryItem);
-            paramItem->setText(0, param.name);
-            paramItem->setText(1, param.id);
-            paramItem->setText(2, ""); // Значение будет обновляться позже
-            paramItem->setText(3, param.units);
-            paramItem->setText(4, param.description);
+        for (const ParameterDefinition& param : params) {
+            ParameterDefinition updatedParam = param;
 
-            // Сохраняем ParameterDefinition в данных элемента
-            paramItem->setData(0, Qt::UserRole, QVariant::fromValue(param));
+            QTreeWidgetItem* paramItem = new QTreeWidgetItem(categoryItem);
+            paramItem->setText(1, param.name); // Перемещено в столбец 1
+
+            // Создаем ComboBox для выбора units
+            QComboBox* unitsComboBox = nullptr;
+            if (param.unitsList.size() > 1) {
+                unitsComboBox = new QComboBox();
+                for (const auto& unitPair : param.unitsList) {
+                    unitsComboBox->addItem(unitPair.first);
+                }
+                unitsComboBox->setCurrentText(param.units);
+
+                connect(unitsComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                        this, &LoggerWindow::onParameterUnitsChanged);
+
+                ui->parametersTree->setItemWidget(paramItem, 2, unitsComboBox); // ComboBox в столбце 2
+            } else {
+                // Если units только один, просто выводим его текст
+                paramItem->setText(2, param.units); // Units в столбце 2
+            }
+
+            if (unitsComboBox) {
+                updatedParam.units = unitsComboBox->currentText();
+            }
+
+            // Создаем чекбокс
+            QCheckBox* paramCheckBox = new QCheckBox();
+            paramCheckBox->setChecked(false);
+
+            // Подключаем сигнал изменения состояния чекбокса
+            connect(paramCheckBox, &QCheckBox::stateChanged, this, &LoggerWindow::onParameterChecked);
+
+            ui->parametersTree->setItemWidget(paramItem, 0, paramCheckBox); // Чекбокс в столбце 0
+
+            paramItem->setData(0, Qt::UserRole, QVariant::fromValue(updatedParam));
         }
+        categoryItem->setExpanded(true);
     }
 
-    ui->parametersTree->expandAll();
+    // Настраиваем ширину столбцов
+    ui->parametersTree->resizeColumnToContents(0); // Select
+    ui->parametersTree->resizeColumnToContents(1); // Parameter
+    ui->parametersTree->resizeColumnToContents(2); // Units
 }
 
+void LoggerWindow::onParameterChecked(int state) {
+    // ... (код слота) ...
+}
+
+void LoggerWindow::onParameterUnitsChanged(int index) {
+    // Получаем выбранный item в дереве
+    QTreeWidgetItem* paramItem = ui->parametersTree->currentItem();
+    if (!paramItem) return;
+
+    // Получаем ParameterDefinition из item
+    ParameterDefinition param = paramItem->data(0, Qt::UserRole).value<ParameterDefinition>();
+
+    // Обновляем units и expression
+    QComboBox* unitsComboBox = qobject_cast<QComboBox*>(ui->parametersTree->itemWidget(paramItem, 2));
+    if (unitsComboBox) {
+        param.units = unitsComboBox->currentText();
+
+        for (const auto& unitPair : param.unitsList) {
+            if (unitPair.first == param.units) {
+                param.expression = unitPair.second;
+                break;
+            }
+        }
+
+        // Обновляем данные в item
+        paramItem->setData(0, Qt::UserRole, QVariant::fromValue(param));
+
+        // Обновляем ширину столбца Units
+        ui->parametersTree->resizeColumnToContents(2);
+    }
+}
 void LoggerWindow::processParameterData(const QString& paramId, const QByteArray& data)
 {
     const ConfigManager::Parameter* param = ConfigManager::instance().getParameter(paramId);
