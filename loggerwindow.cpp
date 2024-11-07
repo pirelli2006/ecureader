@@ -10,7 +10,6 @@
 #include <QThread>
 #include <QElapsedTimer>
 #include <QFileInfo>
-#include "ParameterWindow.h"
 #include <QFileDialog>
 #include <QTextStream>
 #include <QSettings>
@@ -33,10 +32,12 @@
 #include <QFile>
 #include <QDomDocument>
 #include <QMessageBox>
+#include "parametergraphicswidget.h"
 
 
 LoggerWindow::LoggerWindow(QWidget *parent) :
     QMainWindow(parent),
+    m_parametersScene(new QGraphicsScene(this)),
     ui(new Ui::LoggerWindow),
     m_j2534(nullptr),
     m_deviceId(0),
@@ -47,10 +48,16 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
     m_sessionOpened(false),
     m_readTimer(new QTimer(this)),
     m_isFileLogging(false)
+
 {
     ui->setupUi(this);
 
     initializeUI();
+
+    // Инициализируем сцену для графических виджетов параметров
+    ui->parameterGraphicsView->setScene(m_parametersScene);
+
+    connect(ui->windowSizeButton, &QPushButton::clicked, this, &LoggerWindow::onWindowSizeButtonClicked);
 
     // Проверка создания виджета
     if (!ui->parametersTree) {
@@ -87,7 +94,6 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
     connect(ui->stopButton, &QPushButton::clicked, this, &LoggerWindow::onStopLoggingClicked);
     connect(this, &LoggerWindow::connectionEstablished, this, &LoggerWindow::onConnectionEstablished);
     connect(ui->fileLogButton, &QPushButton::clicked, this, &LoggerWindow::onFileLogButtonClicked);
-    connect(this, &LoggerWindow::connectionEstablished, this, &LoggerWindow::onConnectionEstablished);
     connect(ui->actionExit, &QAction::triggered, this, &QWidget::close);
 
     m_isFileLogging = false;
@@ -129,8 +135,8 @@ LoggerWindow::~LoggerWindow()
     }
 
     // Очистка виджетов параметров
-    qDeleteAll(m_parameterWidgets);
-    m_parameterWidgets.clear();
+    qDeleteAll(m_parameterGraphicsWidgets);
+    m_parameterGraphicsWidgets.clear();
 
     disconnectCurrent();
     saveSettings();
@@ -309,7 +315,10 @@ void LoggerWindow::saveSettings()
     qDebug() << "AutoScroll:" << (ui->logTextEdit->document()->maximumBlockCount() > 0);
     qDebug() << "MaxLogLines:" << ui->logTextEdit->document()->maximumBlockCount();
     qDebug() << "PlotUpdateInterval:" << (m_readTimer ? m_readTimer->interval() : 100);
-    qDebug() << "SelectedParameters:" << m_selectedParameters;
+    qDebug() << "SelectedParameters:";
+    for (const Parameter& param : m_selectedParameters) {
+        qDebug() << param; // Используйте перегруженный оператор << или выводите по отдельности
+    }
     qDebug() << "FileLoggingEnabled:" << m_isFileLogging;
     qDebug() << "LastLogDirectory:" << m_lastLogDirectory;
 
@@ -325,7 +334,7 @@ void LoggerWindow::saveSettings()
     // Сохранение выбранных параметров
     QStringList selectedParameters;
     for (const auto& param : m_selectedParameters) {
-        selectedParameters << param;
+        selectedParameters << param.getName();
     }
     settings.setValue("LoggerWindow/SelectedParameters", selectedParameters);
 
@@ -409,7 +418,8 @@ void LoggerWindow::loadSettings()
     QStringList selectedParams = settings.value("LoggerWindow/SelectedParameters", QStringList()).toStringList();
     qDebug() << "Loading SelectedParameters:" << selectedParams;
     m_selectedParameters.clear();
-    for (const QString& param : selectedParams) {
+    for (const QString& paramName : selectedParams) {
+        Parameter param = getParameterByName(paramName); // Метод, который возвращает объект Parameter по имени
         m_selectedParameters.append(param);
     }
 
@@ -440,6 +450,87 @@ void LoggerWindow::loadSettings()
     checkUIState();
 
     qDebug() << "Settings loaded successfully";
+}
+
+void LoggerWindow::onConnectionEstablished()
+{
+    qDebug() << "Connection established";
+    appendToLog("Connection established, ready for parameter selection.");
+
+    // Очищаем сцену от предыдущих виджетов
+    m_parametersScene->clear();
+    m_parameterGraphicsWidgets.clear();
+
+    // Начинаем логирование
+    startLogging();
+}
+
+void LoggerWindow::onParameterItemChanged(QTreeWidgetItem* item, int column) {
+    if (column != 0) {  // Изменение не в колонке с чекбоксом
+        return;
+    }
+
+    // Объявляем parameterName здесь
+    QString parameterName = item->text(1);
+
+    if (item->checkState(0) == Qt::Checked) {
+        // Проверяем, есть ли уже виджет для этого параметра
+        if (!m_parameterGraphicsWidgets.contains(parameterName)) {
+            ParameterDefinition param = item->data(0, Qt::UserRole).value<ParameterDefinition>();
+            if (param.conversions.isEmpty()) {
+                qWarning() << "Conversions list is empty for parameter:" << parameterName;
+                return;
+            }
+
+            // Создаем ParameterGraphicsWidget
+            double minValue = param.conversions.first().gauge_min.toDouble();
+            double maxValue = param.conversions.first().gauge_max.toDouble();
+
+            auto* widget = new ParameterGraphicsWidget(
+                param.name,
+                param.units,
+                minValue,
+                maxValue,
+                0.0
+                );
+
+            m_parameterGraphicsWidgets[parameterName] = widget;
+            m_parametersScene->addItem(widget);
+
+            // Подключаем обновление значения
+            connect(this, &LoggerWindow::parameterUpdated, widget,
+                    [widget, parameterName](const QString& name, double value, const QString& units) {
+                        if (name == parameterName) {
+                            widget->updateValue(value);
+                        }
+                    });
+
+            // Располагаем виджеты в сетке
+            rearrangeParameterGraphicsWidgets();
+        }
+    } else if (item->checkState(0) == Qt::Unchecked) { // Проверяем состояние чекбокса
+        // Удаляем виджет, если чекбокс снят
+        if (m_parameterGraphicsWidgets.contains(parameterName)) {
+            auto* widget = m_parameterGraphicsWidgets.take(parameterName); // Получаем виджет из карты
+            m_parametersScene->removeItem(widget);
+            delete widget;
+            rearrangeParameterGraphicsWidgets();
+        }
+    }
+
+    // Обновляем сцену
+    m_parametersScene->update();
+}
+
+Parameter LoggerWindow::getParameterByName(const QString& name) const {
+    // Предположим, что у вас есть контейнер, где хранятся все параметры
+    for (const Parameter& param : allParameters) { // allParameters - это QVector<Parameter> или другой контейнер
+        if (param.getName() == name) { // Предполагаем, что у Parameter есть метод getName()
+            return param; // Возвращаем найденный параметр
+        }
+    }
+    // Если параметр не найден, можно вернуть какой-то "пустой" объект или бросить исключение
+    return Parameter(); // Предполагается, что у вас есть конструктор по умолчанию
 }
 
 void LoggerWindow::onSaveLogTriggered()
@@ -872,7 +963,7 @@ void LoggerWindow::processResponse(uint8_t requestedService, const QByteArray& r
                     valueStr = QString::number(value);
                 }
 
-                updateParameter(param.name, valueStr, param.units);
+                updateParameter(param, valueStr, param.units);
             }
             updatePlot();
         }
@@ -928,27 +1019,6 @@ bool LoggerWindow::openDiagnosticSession()
     return true;
 }
 
-void LoggerWindow::setupRequestQueue()
-{
-    m_requestQueue.clear();
-
-    // Добавляем в очередь только выбранные параметры
-    for (const auto& paramName : m_selectedParameters) {
-        const auto* param = ConfigManager::instance().getParameter(paramName);
-        if (param) {
-            auto* widget = new ParameterWidget(
-                param->name,
-                param->conversions.first().units,
-                param->conversions.first().gauge_min,
-                param->conversions.first().gauge_max,
-                m_parametersContainer
-                );
-            m_parameterWidgets[param->name] = widget;
-            m_parametersLayout->insertWidget(m_parametersLayout->count() - 1, widget);
-        }
-    }
-}
-
 void LoggerWindow::onDisplayModeChanged(int index)
 {
     qDebug() << "Display mode changed to index:" << index;
@@ -975,56 +1045,59 @@ void LoggerWindow::checkUIState()
     qDebug() << "Current display mode index:" << ui->displayModeComboBox->currentIndex();
 }
 
-void LoggerWindow::onConnectionEstablished()
-{
-    qDebug() << "Connection established";
-    appendToLog("Connection established, preparing parameter selection...");
-
-    // Получаем параметры из ConfigManager
-    QVector<ConfigManager::Parameter> parameters = ConfigManager::instance().getAllParameters();
-
-    if (parameters.isEmpty()) {
-        QMessageBox::warning(this, "Warning", "No parameters available");
-        appendToLog("No parameters available for logging");
-        disconnectCurrent();
-        ui->startButton->setEnabled(true);
+void LoggerWindow::onParameterChecked(int state) {
+    QTreeWidgetItem* item = ui->parametersTree->currentItem();
+    if (!item) {
         return;
     }
 
-    // Создаем диалог выбора параметров
-    ParameterSelectionDialog dialog(parameters, this);
+    ParameterDefinition param = item->data(0, Qt::UserRole).value<ParameterDefinition>();
+    QString parameterName = param.name;
 
-    if (dialog.exec() == QDialog::Accepted) {
-        // Получаем выбранные параметры
-        m_selectedParameters = QVector<QString>::fromList(dialog.getSelectedParameters());
+    if (state == Qt::Checked) {
+        if (!m_parameterGraphicsWidgets.contains(parameterName)) {
+            if (param.conversions.isEmpty()) {
+                qWarning() << "Conversions list is empty for parameter:" << parameterName;
+                return;
+            }
 
-        if (m_selectedParameters.isEmpty()) {
-            QMessageBox::warning(this, "Warning", "No parameters selected");
-            appendToLog("No parameters selected for logging");
-            disconnectCurrent();
-            ui->startButton->setEnabled(true);
-            return;
+            double minValue = param.conversions.first().gauge_min.toDouble();
+            double maxValue = param.conversions.first().gauge_max.toDouble();
+
+            auto* widget = new ParameterGraphicsWidget(
+                param.name,
+                param.units,
+                minValue,
+                maxValue,
+                0.0
+                );
+            m_parameterGraphicsWidgets[parameterName] = widget;
+
+            // Добавляем widget в сцену
+            m_parametersScene->addItem(widget);
+
+            // Располагаем виджеты в сетке
+            rearrangeParameterGraphicsWidgets();
+
+            // Подключаем обновление значения
+            connect(this, &LoggerWindow::parameterUpdated,
+                    widget, [widget, parameterName](const QString& name, double value, const QString& units) {
+                        if (name == parameterName) {
+                            widget->updateValue(value);
+                        }
+                    });
         }
-
-        // Создаем виджеты для выбранных параметров
-        createParameterWidgets();
-
-        // Настраиваем очередь запросов
-        setupRequestQueue();
-
-        // Запускаем таймер для чтения данных
-        if (m_readTimer) {
-            m_readTimer->start(100);
+    } else if (state == Qt::Unchecked) {
+        if (m_parameterGraphicsWidgets.contains(parameterName)) {
+            auto* widget = m_parameterGraphicsWidgets.take(parameterName);
+            m_parametersScene->removeItem(widget);
+            delete widget;
+            rearrangeParameterGraphicsWidgets();
         }
-
-        m_isLogging = true;
-        appendToLog("Logging started with " + QString::number(m_selectedParameters.size()) + " parameters");
-
-    } else {
-        appendToLog("Parameter selection cancelled");
-        disconnectCurrent();
-        ui->startButton->setEnabled(true);
     }
+
+    // Обновляем сцену, чтобы изменения отобразились
+    m_parametersScene->update();
 }
 
 bool LoggerWindow::setupScanmaticFilter()
@@ -1104,29 +1177,20 @@ QColor LoggerWindow::getNextColor()
     return color;
 }
 
-void LoggerWindow::createParameterWidgets()
-{
-    // Очищаем существующие виджеты
-    for (auto widget : m_parameterWidgets) {
-        delete widget;
-    }
-    m_parameterWidgets.clear();
 
-    // Создаем новые виджеты для выбранных параметров
-    for (const auto& paramName : m_selectedParameters) {
-        const auto* param = ConfigManager::instance().getParameter(paramName);
-        if (param && !param->conversions.isEmpty()) {
-            const auto& conv = param->conversions.first();
-            auto* widget = new ParameterWidget(
-                param->name,
-                conv.units,
-                conv.gauge_min,
-                conv.gauge_max,
-                m_parametersContainer
-                );
-            m_parameterWidgets[param->name] = widget;
-            m_parametersLayout->insertWidget(m_parametersLayout->count() - 1, widget);
+void LoggerWindow::onParameterUpdated(const ParameterDefinition& param, const QString& value, const QString& units)
+{
+    auto it = m_parameterGraphicsWidgets.find(param.name);
+    if (it != m_parameterGraphicsWidgets.end()) {
+        bool ok;
+        double numericValue = value.toDouble(&ok);
+        if (ok) {
+            it.value()->updateValue(numericValue);
+        } else {
+            qDebug() << "Error converting value to double:" << value;
         }
+    } else {
+        qDebug() << "Parameter not found in graphics widgets:" << param.name;
     }
 }
 
@@ -1431,51 +1495,46 @@ void LoggerWindow::updatePlot()
     m_plot->replot();
 }
 
-void LoggerWindow::updateParameter(const QString& name, const QString& value, const QString& units)
+void LoggerWindow::updateParameter(const ParameterDefinition& param, const QString& value, const QString& units)
 {
     // Обновляем значение в дереве параметров
     for (int i = 0; i < ui->parametersTree->topLevelItemCount(); ++i) {
         QTreeWidgetItem* item = ui->parametersTree->topLevelItem(i);
-        if (item->text(1) == name) {
+        if (item->text(1) == param.name) {
             item->setText(2, value);
             item->setText(3, units);
             break;
         }
     }
 
-    // Отправляем сигнал для обновления отдельных окон
-    emit parameterUpdated(name, value, units);
-}
+    auto widgetIt = m_parameterGraphicsWidgets.find(param.name);
+    if (widgetIt != m_parameterGraphicsWidgets.end()) {
+        bool ok;
+        double numericValue = value.toDouble(&ok);
+        if (ok) {
+            widgetIt.value()->updateValue(numericValue);
 
-void LoggerWindow::onParameterItemChanged(QTreeWidgetItem* item, int column)
-{
-    if (column != 0) // Проверяем, что изменение произошло в колонке с чекбоксом
-        return;
+            // Динамическое обновление min/max
+            double currentMin = widgetIt.value()->getMinValue();
+            double currentMax = widgetIt.value()->getMaxValue();
 
-    if (item->checkState(0) == Qt::Checked) {
-        // Получаем имя параметра
-        QString paramName = item->text(1);
+            if (numericValue < currentMin) {
+                currentMin = numericValue;
+            }
+            if (numericValue > currentMax) {
+                currentMax = numericValue;
+            }
 
-        // Создаем и показываем новое окно для параметра
-        ParameterWindow* paramWindow = new ParameterWindow(paramName, this);
-        paramWindow->setAttribute(Qt::WA_DeleteOnClose); // Автоматическое удаление при закрытии
-
-        // Подключаем обновление значения
-        connect(this, &LoggerWindow::parameterUpdated,
-                paramWindow, &ParameterWindow::updateValue);
-
-        // Сохраняем указатель на окно
-        m_parameterWindows[paramName] = paramWindow;
-
-        // Показываем окно
-        paramWindow->show();
-    } else {
-        // Если чекбокс снят, закрываем соответствующее окно
-        QString paramName = item->text(1);
-        if (m_parameterWindows.contains(paramName)) {
-            m_parameterWindows[paramName]->close();
-            m_parameterWindows.remove(paramName);
+            widgetIt.value()->setMinMax(currentMin, currentMax);
         }
+    }
+
+    // Отправляем сигнал для обновления отдельных окон
+    emit parameterUpdated(param.name, value.toDouble(), units);
+
+    // Обновляем график, если режим графика активен
+    if (ui->displayModeComboBox->currentIndex() == 1) {
+        updatePlot();
     }
 }
 
@@ -1484,7 +1543,7 @@ void LoggerWindow::startLogging()
     if (!m_readTimer) return;
 
     m_isLogging = true;
-    setupRequestQueue();
+    //setupRequestQueue();
     m_readTimer->start(100); // 100ms интервал
 
     m_startButton->setEnabled(false);
@@ -1762,9 +1821,8 @@ void LoggerWindow::updateParametersTree() {
     ui->parametersTree->resizeColumnToContents(2); // Units
 }
 
-void LoggerWindow::onParameterChecked(int state) {
-    // ... (код слота) ...
-}
+
+
 
 void LoggerWindow::onParameterUnitsChanged(int index) {
     // Получаем выбранный item в дереве
@@ -1793,32 +1851,7 @@ void LoggerWindow::onParameterUnitsChanged(int index) {
         ui->parametersTree->resizeColumnToContents(2);
     }
 }
-void LoggerWindow::processParameterData(const QString& paramId, const QByteArray& data)
-{
-    const ConfigManager::Parameter* param = ConfigManager::instance().getParameter(paramId);
-    if (!param) {
-        qWarning() << "Parameter not found:" << paramId;
-        return;
-    }
-    if (param->conversions.empty()) {
-        qWarning() << "Parameter has no conversions:" << paramId;
-        return;
-    }
 
-    const ConfigManager::Conversion& conv = param->conversions.front();
-
-    std::vector<double> values;
-    values.reserve(data.size());  // Оптимизация: резервируем память заранее
-    for (unsigned char byte : data) {
-        values.push_back(byte);
-    }
-
-    double value = conv.evaluate(values);
-
-    QString formattedValue = formatValue(value, conv.format);
-
-    updateParameterValue(param->name, formattedValue, conv.units);
-}
 
 QString LoggerWindow::formatValue(double value, const QString& format)
 {
@@ -1837,43 +1870,36 @@ QString LoggerWindow::formatValue(double value, const QString& format)
     return QString::number(value);
 }
 
-void LoggerWindow::updateParameterValue(const QString& name, const QString& value, const QString& units)
+void LoggerWindow::onWindowSizeButtonClicked()
 {
-    // Обновление в дереве параметров
-    QList<QTreeWidgetItem*> items = ui->parametersTree->findItems(name, Qt::MatchExactly | Qt::MatchRecursive, 1);
-    for (QTreeWidgetItem* item : items) {
-        item->setText(2, value);
-        item->setText(3, units);
-    }
-
-    // Обновление виджета параметра
-    auto widgetIt = m_parameterWidgets.find(name);
-    if (widgetIt != m_parameterWidgets.end()) {
-        bool ok;
-        double doubleValue = value.toDouble(&ok);
-        if (ok) {
-            widgetIt.value()->updateValue(doubleValue);
-        } else {
-            widgetIt.value()->updateValue(value);
-        }
-    }
-
-    // Обновление данных для графика
-    auto valueIt = m_parameterValues.find(name);
-    if (valueIt != m_parameterValues.end()) {
-        bool ok;
-        double doubleValue = value.toDouble(&ok);
-        if (ok) {
-            valueIt.value().history.append(doubleValue);
-            if (valueIt.value().history.size() > MAX_HISTORY_SIZE) {
-                valueIt.value().history.removeFirst();
-            }
-        }
-    }
-
-    // Отправка сигнала
-    emit parameterUpdated(name, value, units);
-
-    // Обновление графика
-    updatePlot();
+    // Обновляем сцену после изменения размера
+    m_parametersScene->update();
 }
+
+void LoggerWindow::createParameterGraphicsWidgets() {
+    for (const auto& param : m_selectedParameters) {
+        auto* widget = new ParameterGraphicsWidget(param.getName(), param.getUnits(), param.getMinValue(), param.getMaxValue(), param.getInitialValue());
+        m_parametersScene->addItem(widget);
+        m_parameterGraphicsWidgets[param.getName()] = widget; // Сохранение виджета для дальнейшего обновления
+    }
+}
+
+void LoggerWindow::updateParameterGraphicsWidgets() {
+    for (const auto& param : m_selectedParameters) {
+        if (m_parameterGraphicsWidgets.contains(param.getName())) {
+            // Обновление виджета
+            m_parameterGraphicsWidgets[param.getName()]->updateValue(param.getCurrentValue());
+        }
+    }
+}
+
+void LoggerWindow::rearrangeParameterGraphicsWidgets() {
+    // Логика для перераспределения графических виджетов
+    // Например, вы можете установить их в определённые позиции или изменить их размер
+    int yOffset = 0;
+    for (auto* widget : m_parameterGraphicsWidgets) {
+        widget->setPos(0, yOffset); // Установите позицию виджета
+        yOffset += widget->boundingRect().height() + 10; // Отступ между виджетами
+    }
+}
+

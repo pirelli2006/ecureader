@@ -19,7 +19,7 @@
   <property name="windowTitle">
    <string>ECU Logger</string>
   </property>
-   <property name="styleSheet">
+  <property name="styleSheet">
    <string notr="true">
    QMainWindow {
       background-color: #f5f5f5;
@@ -171,8 +171,8 @@
       border-bottom: 1px solid white;
     }
    </string>
-</property>
-   <widget class="QWidget" name="centralwidget">
+  </property>
+  <widget class="QWidget" name="centralwidget">
    <property name="sizePolicy">
     <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
      <horstretch>0</horstretch>
@@ -200,7 +200,7 @@
       <property name="title">
        <string/>
       </property>
-      <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0,0,0,0,0,0">
+      <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0,0,0,0,0,0,0">
        <property name="leftMargin">
         <number>6</number>
        </property>
@@ -226,24 +226,6 @@
        </item>
        <item>
         <widget class="QPushButton" name="stopButton">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>132</width>
-           <height>46</height>
-          </size>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>16777215</width>
-           <height>16777215</height>
-          </size>
-         </property>
          <property name="text">
           <string>Disconnect</string>
          </property>
@@ -265,6 +247,25 @@
        </item>
        <item>
         <widget class="QComboBox" name="displayModeComboBox"/>
+       </item>
+       <item>
+        <widget class="QPushButton" name="windowSizeButton">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>104</width>
+           <height>34</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Window Size</string>
+         </property>
+        </widget>
        </item>
        <item>
         <spacer name="horizontalSpacer">
@@ -343,7 +344,7 @@
         <item>
          <widget class="QTabWidget" name="tabWidget">
           <property name="currentIndex">
-           <number>0</number>
+           <number>1</number>
           </property>
           <widget class="QWidget" name="dashboardTab">
            <attribute name="title">
@@ -361,20 +362,9 @@
            </attribute>
            <layout class="QVBoxLayout" name="verticalLayout_values">
             <item>
-             <widget class="QTableWidget" name="valuesTable">
-              <column>
-               <property name="text">
-                <string>Parameter</string>
-               </property>
-              </column>
-              <column>
-               <property name="text">
-                <string>Units</string>
-               </property>
-              </column>
-             </widget>
-            </item>
-           </layout>
+     <widget class="QGraphicsView" name="parameterGraphicsView"/> 
+    </item>
+			</layout>
           </widget>
           <widget class="QWidget" name="terminalTab">
            <attribute name="title">
@@ -405,7 +395,7 @@
      <x>0</x>
      <y>0</y>
      <width>1100</width>
-     <height>20</height>
+     <height>44</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -443,7 +433,7 @@
    <property name="text">
     <string>Set Log Dir...</string>
    </property>
-  </action>  
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -454,8 +444,7 @@
   </customwidget>
  </customwidgets>
  <resources/>
- <connections/>
-  <connections>
+ <connections>
   <connection>
    <sender>actionExit</sender>
    <signal>triggered()</signal>
@@ -505,4 +494,8 @@
    </hints>
   </connection>
  </connections>
+ <slots>
+  <slot>onLoadXMLClicked()</slot>
+  <slot>onSelectLogDirClicked()</slot>
+ </slots>
 </ui>

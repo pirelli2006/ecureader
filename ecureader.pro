@@ -30,6 +30,7 @@ SOURCES += \
     loggerdefinitionloader.cpp \
     loggerwindow.cpp \
     parameter.cpp \
+    parametergraphicswidget.cpp \
     parameterselectiondialog.cpp \
     parameterwidget.cpp \
     parameterwindow.cpp \
@@ -47,6 +48,7 @@ HEADERS += \
     parameter.h \
     parameterconfig.h \
     parameterdefinition.h \
+    parametergraphicswidget.h \
     parameterselectiondialog.h \
     parameterwidget.h \
     parameterwindow.h \

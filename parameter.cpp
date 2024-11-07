@@ -7,9 +7,8 @@ Parameter::Parameter() = default;
 
 Parameter::~Parameter() = default;
 
-Parameter::Parameter(const QString& name, const QString& id, const QString& description, const QString& units)
-    : m_name(name), m_id(id), m_description(description), m_units(units)
-{
+Parameter::Parameter(const QString& name, const QString& id, const QString& description, const QString& units, double currentValue)
+    : m_name(name), m_id(id), m_description(description), m_units(units), m_currentValue(currentValue) {
 }
 
 Parameter Parameter::fromJson(const QJsonObject& json) {

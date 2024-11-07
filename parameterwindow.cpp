@@ -1,12 +1,17 @@
 #include "ParameterWindow.h"
+#include <QFont>
+#include <QHBoxLayout>
+#include <QLabel>
 
 ParameterWindow::ParameterWindow(const QString& paramName, QWidget* parent)
     : QWidget(parent)
 {
     setWindowTitle(paramName);
-    setMinimumSize(200, 100);
+    setMinimumSize(30, 30);
 
-    QVBoxLayout* layout = new QVBoxLayout(this);
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    m_layout = new QHBoxLayout(this);
     m_nameLabel = new QLabel(paramName, this);
     m_valueLabel = new QLabel("--", this);
     m_valueLabel->setAlignment(Qt::AlignCenter);
@@ -14,13 +19,12 @@ ParameterWindow::ParameterWindow(const QString& paramName, QWidget* parent)
     valueFont.setPointSize(valueFont.pointSize() * 2);
     m_valueLabel->setFont(valueFont);
 
-    layout->addWidget(m_nameLabel);
-    layout->addWidget(m_valueLabel);
+    // Добавляем виджеты в m_layout
+    m_layout->addWidget(m_nameLabel);
+    m_layout->addWidget(m_valueLabel);
 }
 
-void ParameterWindow::updateValue(const QString& paramName, const QString& value, const QString& units)
+void ParameterWindow::updateValue(const QString& value, const QString& units)
 {
-    if (paramName == windowTitle()) {
         m_valueLabel->setText(value + " " + units);
-    }
 }

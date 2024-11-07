@@ -1,142 +1,97 @@
 #include "parameterwidget.h"
-#include <QTimer>
 
-ParameterWidget::ParameterWidget(const QString& name, const QString& units,
-                                 double minValue, double maxValue, QWidget *parent)
-    : QFrame(parent)
-    , m_currentValue(0)
-    , m_minValue(minValue)
-    , m_maxValue(maxValue)
-    , m_isBlinking(false)
+ParameterWidget::ParameterWidget(const QString &name,
+                                 const QString& units,
+                                 double minValue,
+                                 double maxValue,
+                                 double initialValue,
+                                 QWidget *parent) :
+    QWidget(parent),
+    currentSize(WindowSize::SMALL) // Изначально размер окна - SMALL
 {
-    setFrameStyle(QFrame::Box | QFrame::Raised);
-    setLineWidth(2);
+    // Заголовок
+    auto *titleLabel = new QLabel(name, this);
+    titleLabel->setStyleSheet("color: white; font-size: 10pt; border-bottom: 1px solid gray;");
+    titleLabel->setAlignment(Qt::AlignCenter);
 
-    setupUI();
-    createConnections();
+    // Значение
+    valueLabel = new QLabel(QString::number(initialValue), this);
+    valueLabel->setStyleSheet("color: white; font-size: 24pt; font-weight: bold;");
+    valueLabel->setAlignment(Qt::AlignCenter);
 
-    m_nameLabel->setText(name);
-    m_unitsLabel->setText(units);
-    m_minMaxLabel->setText(QString("Min: %1 Max: %2").arg(minValue).arg(maxValue));
+    // Единицы измерения
+    unitsLabel = new QLabel(units, this);
+    unitsLabel->setStyleSheet("color: white; font-size: 10pt;");
+    unitsLabel->setAlignment(Qt::AlignCenter);
 
-    m_blinkTimer = new QTimer(this);
-    m_blinkTimer->setInterval(500); // 500ms blink interval
-    connect(m_blinkTimer, &QTimer::timeout, this, [this]() {
-        updateStyle(m_isBlinking);
-        m_isBlinking = !m_isBlinking;
-    });
+    // Макс/Мин
+    auto *maxLabel = new QLabel("max", this);
+    maxLabel->setStyleSheet("color: white; font-size: 8pt; border-bottom: 1px solid gray;");
+    maxValueLabel = new QLabel(QString::number(maxValue), this);
+    maxValueLabel->setStyleSheet("color: white; font-size: 10pt; border-bottom: 1px solid gray;");
+
+    auto *minLabel = new QLabel("min", this);
+    minLabel->setStyleSheet("color: white; font-size: 8pt; border-bottom: 1px solid gray;");
+    minValueLabel = new QLabel(QString::number(minValue), this);
+    minValueLabel->setStyleSheet("color: white; font-size: 10pt;");
+
+    auto *minmaxLayout = new QVBoxLayout;
+    minmaxLayout->addWidget(maxLabel);
+    minmaxLayout->addWidget(maxValueLabel);
+    minmaxLayout->addSpacing(10);
+    minmaxLayout->addWidget(minLabel);
+    minmaxLayout->addWidget(minValueLabel);
+
+    auto *valueLayout = new QHBoxLayout;
+    valueLayout->addWidget(valueLabel, 1);
+    valueLayout->addLayout(minmaxLayout);
+
+    // Чекбокс и выбор
+    warnCheckBox = new QCheckBox("Warn", this);
+    warnCheckBox->setStyleSheet("color: white;");
+    connect(warnCheckBox, &QCheckBox::stateChanged, this, &ParameterWidget::warnStateChanged);
+
+    warnComboBox = new QComboBox(this);
+    warnComboBox->addItem("above");
+    warnComboBox->setStyleSheet("background-color: #4a5568; color: white; border: 1px solid gray;");
+
+    warnValueEdit = new QLineEdit(this);
+    warnValueEdit->setStyleSheet("background-color: black; color: white; border: 1px solid gray;");
+    warnValueEdit->setFixedWidth(60);
+
+    auto *warnLayout = new QHBoxLayout;
+    warnLayout->addWidget(warnCheckBox);
+    warnLayout->addWidget(warnComboBox);
+    warnLayout->addWidget(warnValueEdit);
+
+    // Общий layout
+    auto *mainLayout = new QVBoxLayout(this);
+    mainLayout->addWidget(titleLabel);
+    mainLayout->addLayout(valueLayout);
+    mainLayout->addWidget(unitsLabel); // Добавляем единицы измерения
+    mainLayout->addLayout(warnLayout);
+    mainLayout->setContentsMargins(10, 10, 10, 10);
+
+    // Стилизация виджета
+    setStyleSheet("background-color: black;");
 }
 
-void ParameterWidget::setupUI()
-{
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
-
-    // Верхняя строка: название и значение
-    QHBoxLayout *topLayout = new QHBoxLayout();
-    m_nameLabel = new QLabel(this);
-    m_valueLabel = new QLabel(this);
-    m_unitsLabel = new QLabel(this);
-    m_minMaxLabel = new QLabel(this);
-
-    topLayout->addWidget(m_nameLabel);
-    topLayout->addWidget(m_valueLabel);
-    topLayout->addWidget(m_unitsLabel);
-    topLayout->addStretch();
-    topLayout->addWidget(m_minMaxLabel);
-
-    // Нижняя строка: настройки условия
-    QHBoxLayout *bottomLayout = new QHBoxLayout();
-    m_checkBox = new QCheckBox("Enable", this);
-    m_conditionCombo = new QComboBox(this);
-    m_conditionCombo->addItems(QStringList() << ">" << "<" << "=");
-    m_thresholdEdit = new QLineEdit(this);
-    m_thresholdEdit->setPlaceholderText("Threshold value");
-
-    bottomLayout->addWidget(m_checkBox);
-    bottomLayout->addWidget(m_conditionCombo);
-    bottomLayout->addWidget(m_thresholdEdit);
-
-    mainLayout->addLayout(topLayout);
-    mainLayout->addLayout(bottomLayout);
+void ParameterWidget::updateValue(const QString &value, const QString& units) {
+    valueLabel->setText(value);
+    unitsLabel->setText(units); // Обновляем единицы измерения
 }
 
-void ParameterWidget::createConnections()
-{
-    connect(m_checkBox, &QCheckBox::toggled, this, &ParameterWidget::checkCondition);
-    connect(m_conditionCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &ParameterWidget::checkCondition);
-    connect(m_thresholdEdit, &QLineEdit::textChanged,
-            this, &ParameterWidget::checkCondition);
+void ParameterWidget::setWindowSize(WindowSize size) {
+    currentSize = size;
+    updateStyles();
 }
 
-void ParameterWidget::setValue(double value)
-{
-    m_currentValue = value;
-    m_valueLabel->setText(QString::number(value, 'f', 2));
-    checkCondition();
-}
-
-void ParameterWidget::checkCondition()
-{
-    if (!m_checkBox->isChecked()) {
-        stopBlinking();
-        return;
-    }
-
-    bool ok;
-    double threshold = m_thresholdEdit->text().toDouble(&ok);
-    if (!ok) return;
-
-    bool condition = false;
-    switch (m_conditionCombo->currentIndex()) {
-    case 0: // >
-        condition = m_currentValue > threshold;
-        break;
-    case 1: // <
-        condition = m_currentValue < threshold;
-        break;
-    case 2: // =
-        condition = qFuzzyCompare(m_currentValue, threshold);
-        break;
-    }
-
-    if (condition) {
-        startBlinking();
+void ParameterWidget::updateStyles() {
+    if (currentSize == SMALL) {
+        // Применяем стили для маленького размера
+        setFixedSize(150, 100);
     } else {
-        stopBlinking();
+        // Применяем стили для среднего размера
+        setFixedSize(200, 150);
     }
-}
-
-void ParameterWidget::startBlinking()
-{
-    if (!m_blinkTimer->isActive()) {
-        m_blinkTimer->start();
-    }
-}
-
-void ParameterWidget::stopBlinking()
-{
-    if (m_blinkTimer->isActive()) {
-        m_blinkTimer->stop();
-    }
-    updateStyle(false);
-}
-
-void ParameterWidget::updateStyle(bool alert)
-{
-    if (alert) {
-        setStyleSheet("ParameterWidget { border: 2px solid red; }");
-    } else {
-        setStyleSheet("ParameterWidget { border: 2px solid gray; }");
-    }
-}
-
-void ParameterWidget::updateValue(double value)
-{
-    m_valueLabel->setText(QString::number(value, 'f', 2));
-}
-
-void ParameterWidget::updateValue(const QString& value)
-{
-    m_valueLabel->setText(value);
 }

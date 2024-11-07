@@ -1,4 +1,3 @@
-// parameterwidget.h
 #ifndef PARAMETERWIDGET_H
 #define PARAMETERWIDGET_H
 
@@ -9,44 +8,43 @@
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
-#include <QFrame>
 
-class ParameterWidget : public QFrame {
+class ParameterWidget : public QWidget
+{
     Q_OBJECT
 public:
-    explicit ParameterWidget(const QString& name, const QString& units,
-                             double minValue, double maxValue, QWidget *parent = nullptr);
+    enum WindowSize {
+        SMALL,
+        MEDIUM
+    };
+    explicit ParameterWidget(const QString &name,
+                             const QString& units,
+                             double minValue,
+                             double maxValue,
+                             double initialValue,
+                             QWidget *parent = nullptr);
 
-    void setValue(double value);
-    bool isEnabled() const { return m_checkBox->isChecked(); }
+    void updateValue(const QString &value, const QString& units);
+    void setWindowSize(WindowSize size);
 
-    void updateValue(double value);
-    void updateValue(const QString& value); // Перегруженная версия
-
-private slots:
-    void checkCondition();
-    void startBlinking();
-    void stopBlinking();
+signals:
+    // Сигналы для оповещения об изменении состояния
+    void warnStateChanged(bool isChecked);
+    void warnThresholdChanged(double newThreshold);
+    void parameterSelected(const QString& parameterName);
 
 private:
-    QLabel *m_nameLabel;
-    QLabel *m_valueLabel;
-    QLabel *m_unitsLabel;
-    QLabel *m_minMaxLabel;
-    QCheckBox *m_checkBox;
-    QComboBox *m_conditionCombo;
-    QLineEdit *m_thresholdEdit;
+    QLabel *valueLabel;
+    QLabel *unitsLabel;
+    QLabel *maxValueLabel;
+    QLabel *minValueLabel;
+    QCheckBox *warnCheckBox;
+    QComboBox *warnComboBox;
+    QLineEdit *warnValueEdit;
+    WindowSize currentSize; // Текущий размер окна
 
-    double m_currentValue;
-    double m_minValue;
-    double m_maxValue;
-
-    QTimer *m_blinkTimer;
-    bool m_isBlinking;
-
-    void setupUI();
-    void createConnections();
-    void updateStyle(bool alert);
+    // Функция для обновления стилей в зависимости от размера окна
+    void updateStyles();
 };
 
 #endif // PARAMETERWIDGET_H
