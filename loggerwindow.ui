@@ -73,17 +73,16 @@
       border-radius: 3px;
       margin-top: 5px;
       padding: 5px;
-	  padding-top: 7px;
+      padding-top: 7px;
       background-color: #ffffff;
     }
     
     QGroupBox::title {
       subcontrol-origin: margin;
-	  subcontrol-position: top left; 
-	  left: 7px;
+      subcontrol-position: top left; 
+      left: 7px;
       padding: 0 3px;
-	  top: -3px;
-      
+      top: -3px;
       color: #444444;
     }
     
@@ -362,9 +361,19 @@
            </attribute>
            <layout class="QVBoxLayout" name="verticalLayout_values">
             <item>
-     <widget class="QGraphicsView" name="parameterGraphicsView"/> 
-    </item>
-			</layout>
+             <widget class="QGraphicsView" name="parameterGraphicsView">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Expanding"/>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>200</width>
+                <height>150</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </widget>
           <widget class="QWidget" name="terminalTab">
            <attribute name="title">

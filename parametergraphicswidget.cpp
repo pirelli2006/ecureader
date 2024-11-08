@@ -1,140 +1,85 @@
 #include "parametergraphicswidget.h"
-#include <QGraphicsLinearLayout>
-#include <QGraphicsProxyWidget>
-#include <QLabel>
-#include <QCheckBox>
-#include <QComboBox>
-#include <QLineEdit>
+#include <QMap>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QWidget>
 #include <QFrame>
+
+static const QMap<WindowStyleType, StyleConfig> styleConfigs = {
+    { WindowStyleType::Minimal, { QSize(200, 100), "color: white; font-size: 20pt; font-weight: bold;" } },
+    { WindowStyleType::Standard, { QSize(260, 150), "color: white; font-size: 28pt; font-weight: bold;" } },
+    { WindowStyleType::Full, { QSize(320, 200), "color: white; font-size: 36pt; font-weight: bold;" } }
+};
 
 ParameterGraphicsWidget::ParameterGraphicsWidget(const QString& name,
                                                  const QString& units,
                                                  double minValue,
                                                  double maxValue,
                                                  double initialValue,
-                                                 QGraphicsItem* parent)
-    : QGraphicsWidget(parent), minValue(minValue), maxValue(maxValue)
+                                                 QWidget* parent)
+    : QWidget(parent), parameterName(name), parameterUnits(units), minValue(minValue), maxValue(maxValue), initialValue(initialValue)
 {
-    // Создаем контейнер QWidget
-    QWidget *containerWidget = new QWidget();
-    containerWidget->setStyleSheet("background-color: black; border: 1px solid #6b7280; border-radius: 5px;");
+    // Главный layout
+    auto* mainLayout = new QVBoxLayout(this);
+    setStyleSheet("background-color: #1c1c1e; border: 1px solid #444; border-radius: 4px;");
+    mainLayout->setContentsMargins(8, 8, 8, 8);
 
-    // Установка компоновки для контейнера
-    auto* mainLayout = new QVBoxLayout(containerWidget);
-
-    // --- Создание виджетов ---
-    titleLabel = new QLabel(QString("<b>%1 (%2)</b>").arg(name, units));
-    titleLabel->setStyleSheet("color: white; font-size: 10pt; padding-bottom: 2px;");
+    // Заголовок параметра
+    titleLabel = new QLabel(QString("%1 (%2)").arg(parameterName, parameterUnits));
     titleLabel->setAlignment(Qt::AlignCenter);
-
-    valueLabel = new QLabel(QString::number(initialValue, 'f', 2));
-    valueLabel->setStyleSheet("color: white; font-size: 24pt; font-weight: bold;");
-    valueLabel->setAlignment(Qt::AlignCenter);
-
-    maxLabel = new QLabel("max:");
-    maxLabel->setStyleSheet("color: white; font-size: 8pt;");
-    maxValueLabel = new QLabel(QString::number(maxValue, 'f', 2));
-    maxValueLabel->setFixedSize(90, 30);
-    maxValueLabel->setStyleSheet("color: white; font-size: 10pt;");
-
-    minLabel = new QLabel("min:");
-    minLabel->setStyleSheet("color: white; font-size: 8pt;");
-    minValueLabel = new QLabel(QString::number(minValue, 'f', 2));
-    minValueLabel->setFixedSize(90, 30);
-    minValueLabel->setStyleSheet("color: white; font-size: 10pt;");
-
-    warnCheckBox = new QCheckBox("Warn");
-    warnCheckBox->setStyleSheet("color: white; font-size: 8pt;");
-    warnCheckBox->setFixedSize(90, 30);
-    connect(warnCheckBox, &QCheckBox::stateChanged, this, &ParameterGraphicsWidget::warnStateChanged);
-
-    warnComboBox = new QComboBox;
-    warnComboBox->addItems({"above", "below"});
-    warnComboBox->setStyleSheet("background-color: #4a5568; color: white; font-size: 8pt; border: 1px solid #6b7280; padding: 2px;");
-
-    warnValueEdit = new QLineEdit;
-    warnValueEdit->setStyleSheet("background-color: black; color: white; font-size: 8pt; border: 1px solid #6b7280; padding: 2px;");
-    warnValueEdit->setPlaceholderText("Value");
-    connect(warnValueEdit, &QLineEdit::editingFinished, this, [this]() {
-        bool ok;
-        double newThreshold = warnValueEdit->text().toDouble(&ok);
-        if (ok) {
-            emit warnThresholdChanged(newThreshold);
-        } else {
-            warnValueEdit->setStyleSheet("background-color: red;");
-        }
-    });
-
-    // --- Установка компоновки ---
-    // Добавляем заголовок
+    titleLabel->setStyleSheet("color: #d1d1d6; font-size: 10pt;");
+    titleLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     mainLayout->addWidget(titleLabel);
 
-    // Создаем горизонтальный layout для valueLabel, разделителя и блока min/max
-    auto* valueMinMaxLayout = new QHBoxLayout();
-    mainLayout->addLayout(valueMinMaxLayout);
+    // Layout для основного значения и max/min значений
+    auto* valueLayout = new QHBoxLayout();
+    valueLabel = new QLabel(QString::number(initialValue, 'f', 2));
+    valueLabel->setAlignment(Qt::AlignCenter);
+    valueLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    valueLabel->setStyleSheet("color: white; font-weight: bold;");
+    valueLayout->addWidget(valueLabel);
 
-    // Добавляем valueLabel
-    valueMinMaxLayout->addWidget(valueLabel);
-
-    // Добавляем вертикальный разделитель
-    QFrame* separator = new QFrame();
-    separator->setFrameShape(QFrame::VLine);
-    separator->setStyleSheet("background-color: #6b7280; width: 1px;"); // Устанавливаем цвет и ширину
-    //valueMinMaxLayout->addWidget(separator); // Добавляем разделитель в layout
-
-    // Добавляем отступы перед разделителем
-    valueMinMaxLayout->addSpacing(5); // Добавляем отступ перед разделителем
-    valueMinMaxLayout->addWidget(separator); // Добавляем разделитель в layout
-    valueMinMaxLayout->addSpacing(5); // Добавляем отступ после разделителя
-
-
-    // Создаем вертикальный layout для min/max
+    // Компоновка для max/min значений справа от основного значения
     auto* minMaxLayout = new QVBoxLayout();
-    minMaxLayout->setSpacing(5); // Увеличиваем расстояние между элементами
-    minMaxLayout->setContentsMargins(0, 0, 5, 0); // Устанавливаем отступы (left, top, right, bottom)
-    valueMinMaxLayout->addLayout(minMaxLayout);
-
-    // Добавляем метки и значения max/min
+    maxLabel = new QLabel("max:");
+    maxLabel->setStyleSheet("color: #d1d1d6; font-size: 8pt;");
+    maxValueLabel = new QLabel(QString::number(maxValue, 'f', 2));
+    maxValueLabel->setStyleSheet("color: #d1d1d6; font-size: 8pt;");
     minMaxLayout->addWidget(maxLabel);
     minMaxLayout->addWidget(maxValueLabel);
-    minMaxLayout->addSpacing(10); // Добавляем отступ между max и min
+
+    minLabel = new QLabel("min:");
+    minLabel->setStyleSheet("color: #d1d1d6; font-size: 8pt;");
+    minValueLabel = new QLabel(QString::number(minValue, 'f', 2));
+    minValueLabel->setStyleSheet("color: #d1d1d6; font-size: 8pt;");
     minMaxLayout->addWidget(minLabel);
     minMaxLayout->addWidget(minValueLabel);
 
+    valueLayout->addLayout(minMaxLayout);
+    mainLayout->addLayout(valueLayout);
 
-
-    // Создаем warnLayout
+    // Layout для предупреждений
     auto* warnLayout = new QHBoxLayout();
+    warnCheckBox = new QCheckBox("Warn");
+    warnCheckBox->setStyleSheet("color: #d1d1d6; font-size: 8pt;");
+    warnComboBox = new QComboBox;
+    warnComboBox->addItems({"above", "below"});
+    warnComboBox->setStyleSheet("background-color: #2c2c2e; color: white; font-size: 8pt;");
+    warnValueEdit = new QLineEdit;
+    warnValueEdit->setPlaceholderText("Value");
+    warnValueEdit->setStyleSheet("background-color: #2c2c2e; color: white; font-size: 8pt;");
+    warnValueEdit->setFixedWidth(100);
+
+    warnLayout->addWidget(warnCheckBox);
+    warnLayout->addWidget(warnComboBox);
+    warnLayout->addWidget(warnValueEdit);
     mainLayout->addLayout(warnLayout);
 
-    // Добавляем warnCheckBox
-    warnLayout->addWidget(warnCheckBox);
-
-    // Добавляем warnComboBox
-    warnLayout->addWidget(warnComboBox);
-
-    // Добавляем warnValueEdit
-    warnLayout->addWidget(warnValueEdit);
-
-    // Устанавливаем основной layout для QGraphicsWidget
-    auto* graphicsLayout = new QGraphicsLinearLayout(Qt::Vertical, this);
-    setLayout(graphicsLayout);
-
-    // Создаем QGraphicsProxyWidget для контейнера
-    auto* proxyContainer = new QGraphicsProxyWidget(this);
-    proxyContainer->setWidget(containerWidget);
-
-    // Добавляем proxyContainer в графический layout
-    graphicsLayout->addItem(proxyContainer);
+    // Устанавливаем начальный стиль
+    applyStyle(WindowStyleType::Standard);
 }
 
-// Метод для обновления значения
 void ParameterGraphicsWidget::updateValue(double value) {
     if (value < minValue || value > maxValue) {
-        // Изменение цвета текста на красный для индикации ошибки
         valueLabel->setStyleSheet("color: red; font-size: 24pt; font-weight: bold;");
     } else {
         valueLabel->setStyleSheet("color: white; font-size: 24pt; font-weight: bold;");
@@ -142,10 +87,36 @@ void ParameterGraphicsWidget::updateValue(double value) {
     valueLabel->setText(QString::number(value, 'f', 2));
 }
 
-// Метод для установки новых значений min и max
 void ParameterGraphicsWidget::setMinMax(double minValue, double maxValue) {
-    this->minValue = minValue; // Сохраняем новое значение
-    this->maxValue = maxValue; // Сохраняем новое значение
+    this->minValue = minValue;
+    this->maxValue = maxValue;
     minValueLabel->setText(QString::number(minValue, 'f', 2));
     maxValueLabel->setText(QString::number(maxValue, 'f', 2));
+}
+
+void ParameterGraphicsWidget::applyStyle(WindowStyleType styleType) {
+    // Управляем видимостью элементов в зависимости от стиля
+    bool showMinMax = (styleType == WindowStyleType::Standard || styleType == WindowStyleType::Full);
+    bool showWarnings = (styleType == WindowStyleType::Full);
+
+    // Устанавливаем видимость min/max значений
+    maxLabel->setVisible(showMinMax);
+    maxValueLabel->setVisible(showMinMax);
+    minLabel->setVisible(showMinMax);
+    minValueLabel->setVisible(showMinMax);
+
+    // Устанавливаем видимость элементов предупреждения
+    warnCheckBox->setVisible(showWarnings);
+    warnComboBox->setVisible(showWarnings);
+    warnValueEdit->setVisible(showWarnings);
+
+    // Применение размеров и стиля для текущего типа окна
+    if (styleConfigs.contains(styleType)) {
+        const StyleConfig& config = styleConfigs[styleType];
+        setMinimumSize(config.size);
+        setMaximumSize(config.size);
+        valueLabel->setStyleSheet(config.valueLabelStyle);
+    }
+
+    update(); // Обновляем виджет после изменения стиля
 }

@@ -48,14 +48,27 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
     m_sessionOpened(false),
     m_readTimer(new QTimer(this)),
     m_isFileLogging(false)
-
 {
     ui->setupUi(this);
 
     initializeUI();
 
-    // Инициализируем сцену для графических виджетов параметров
+    // Создаем и устанавливаем сцену один раз
+    m_parametersScene = new QGraphicsScene(this);
     ui->parameterGraphicsView->setScene(m_parametersScene);
+
+    // Устанавливаем выравнивание сцены в QGraphicsView
+    ui->parameterGraphicsView->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+
+    // Устанавливаем параметры отступов для макета, чтобы убрать лишние границы
+    m_parametersLayout = qobject_cast<QVBoxLayout*>(ui->leftPanelContainer->layout());
+    if (m_parametersLayout) {
+        m_parametersLayout->setContentsMargins(0, 0, 0, 0);
+    }
+
+    // Устанавливаем отступы для дерева параметров
+    m_parametersTree = ui->parametersTree;
+    m_parametersTree->setContentsMargins(0, 0, 0, 0);
 
     connect(ui->windowSizeButton, &QPushButton::clicked, this, &LoggerWindow::onWindowSizeButtonClicked);
 
@@ -66,8 +79,8 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
     }
 
     // Базовая настройка дерева
-    ui->parametersTree->setColumnCount(2);
-    ui->parametersTree->setHeaderLabels(QStringList() << "Parameter" << "Units");
+    ui->parametersTree->setColumnCount(3);
+    ui->parametersTree->setHeaderLabels(QStringList() << "Select" << "Parameter" << "Units");
     ui->parametersTree->setAlternatingRowColors(true);
     ui->parametersTree->setUniformRowHeights(true);
     ui->parametersTree->setSortingEnabled(true);
@@ -107,10 +120,8 @@ LoggerWindow::LoggerWindow(QWidget *parent) :
     if (!m_lastXmlFilePath.isEmpty() && QFile::exists(m_lastXmlFilePath)) {
         loadLoggerDefinition(m_lastXmlFilePath);
     } else {
-        // Если сохраненный путь недействителен, показываем диалог выбора файла
-        onLoadXMLClicked();
+        // Если сохраненный путь недействителен, показываем диалог выбора файла onLoadXMLClicked();
     }
-
 }
 
 LoggerWindow::~LoggerWindow()
@@ -199,7 +210,6 @@ void LoggerWindow::initializeUI()
 
     setupPlot();
 }
-
 
 void LoggerWindow::closeEvent(QCloseEvent *event)
 {
@@ -465,61 +475,78 @@ void LoggerWindow::onConnectionEstablished()
     startLogging();
 }
 
-void LoggerWindow::onParameterItemChanged(QTreeWidgetItem* item, int column) {
-    if (column != 0) {  // Изменение не в колонке с чекбоксом
+void LoggerWindow::rearrangeParameterGraphicsWidgets() {
+    if (!m_parametersScene || !ui->parameterGraphicsView) {
+        qDebug() << "Error: Scene or View is nullptr.";
         return;
     }
 
-    // Объявляем parameterName здесь
-    QString parameterName = item->text(1);
+    QSize viewSize = ui->parameterGraphicsView->size();
+    qreal viewWidth = viewSize.width();
 
-    if (item->checkState(0) == Qt::Checked) {
-        // Проверяем, есть ли уже виджет для этого параметра
-        if (!m_parameterGraphicsWidgets.contains(parameterName)) {
-            ParameterDefinition param = item->data(0, Qt::UserRole).value<ParameterDefinition>();
-            if (param.conversions.isEmpty()) {
-                qWarning() << "Conversions list is empty for parameter:" << parameterName;
-                return;
-            }
+    qreal currentX = 0; // Начальная позиция по X
+    qreal currentY = 0; // Начальная позиция по Y
+    qreal rowHeight = 0; // Высота текущей строки
 
-            // Создаем ParameterGraphicsWidget
-            double minValue = param.conversions.first().gauge_min.toDouble();
-            double maxValue = param.conversions.first().gauge_max.toDouble();
-
-            auto* widget = new ParameterGraphicsWidget(
-                param.name,
-                param.units,
-                minValue,
-                maxValue,
-                0.0
-                );
-
-            m_parameterGraphicsWidgets[parameterName] = widget;
-            m_parametersScene->addItem(widget);
-
-            // Подключаем обновление значения
-            connect(this, &LoggerWindow::parameterUpdated, widget,
-                    [widget, parameterName](const QString& name, double value, const QString& units) {
-                        if (name == parameterName) {
-                            widget->updateValue(value);
-                        }
-                    });
-
-            // Располагаем виджеты в сетке
-            rearrangeParameterGraphicsWidgets();
+    for (const auto& pair : m_parameterGraphicsWidgets) {
+        QGraphicsProxyWidget* proxyWidget = pair; // Предполагается, что pair - это указатель на QGraphicsProxyWidget
+        if (!proxyWidget) {
+            qDebug() << "Warning: proxyWidget is nullptr.";
+            continue;
         }
-    } else if (item->checkState(0) == Qt::Unchecked) { // Проверяем состояние чекбокса
-        // Удаляем виджет, если чекбокс снят
-        if (m_parameterGraphicsWidgets.contains(parameterName)) {
-            auto* widget = m_parameterGraphicsWidgets.take(parameterName); // Получаем виджет из карты
-            m_parametersScene->removeItem(widget);
-            delete widget;
-            rearrangeParameterGraphicsWidgets();
+
+        QWidget* widget = proxyWidget->widget();
+        if (!widget) {
+            qDebug() << "Error: widget is nullptr for proxyWidget.";
+            continue;
+        }
+
+        QSizeF size = widget->sizeHint();
+        if (size.isEmpty()) {
+            qDebug() << "Error: sizeHint is empty for widget.";
+            continue;
+        }
+
+        // Если текущий виджет не помещается по ширине, переносим его на новую строку
+        if (currentX + size.width() > viewWidth) {
+            currentX = 0; // Сбросим X
+            currentY += rowHeight + 5; // Переход на следующую строку по текущей высоте строки + отступ 5px
+            rowHeight = 0; // Сброс высоты строки для следующей строки
+        }
+
+        // Устанавливаем позицию для виджета
+        proxyWidget->setPos(currentX, currentY);
+
+        // Обновляем текущую позицию X и высоту строки
+        currentX += size.width() + 5; // Добавляем ширину виджета и отступ 5px
+        rowHeight = std::max(rowHeight, size.height()); // Храним максимальную высоту текущей строки
+    }
+
+    // Обновляем размер сцены с учетом всей области виджетов
+    m_parametersScene->setSceneRect(0, 0, viewWidth, currentY + rowHeight + 5); // Добавляем rowHeight для последней строки и отступ 5px
+}
+
+void LoggerWindow::updateSceneSize() {
+    int totalWidth = 0;
+    int totalHeight = 0;
+
+    // Прой демся по всем виджетам и рассчитаем размеры
+    for (const auto& pair : m_parameterGraphicsWidgets) {
+        QGraphicsProxyWidget* proxy = pair; // Предполагается, что pair - это указатель на QGraphicsProxyWidget
+        if (proxy) {
+            QWidget* widget = proxy->widget();
+            if (widget) {
+                totalWidth = std::max(totalWidth, static_cast<int>(widget->sizeHint().width()));
+                totalHeight += widget->sizeHint().height() + 10; // Добавляем отступ
+            }
         }
     }
 
-    // Обновляем сцену
-    m_parametersScene->update();
+    // Установим размеры сцены
+    m_parametersScene->setSceneRect(0, 0, totalWidth, totalHeight);
+
+    // Выводим размеры в отладочный лог
+    qDebug() << "Updated scene size: Width =" << totalWidth << ", Height =" << totalHeight;
 }
 
 Parameter LoggerWindow::getParameterByName(const QString& name) const {
@@ -1071,10 +1098,13 @@ void LoggerWindow::onParameterChecked(int state) {
                 maxValue,
                 0.0
                 );
-            m_parameterGraphicsWidgets[parameterName] = widget;
 
-            // Добавляем widget в сцену
-            m_parametersScene->addItem(widget);
+            // Оборачиваем виджет в QGraphicsProxyWidget
+            QGraphicsProxyWidget* proxyWidget = m_parametersScene->addWidget(widget);
+            m_parameterGraphicsWidgets[parameterName] = proxyWidget; // Сохраняем указатель на proxyWidget
+
+            // Логируем добавление виджета
+            qDebug() << "Added widget for parameter:" << parameterName;
 
             // Располагаем виджеты в сетке
             rearrangeParameterGraphicsWidgets();
@@ -1089,9 +1119,13 @@ void LoggerWindow::onParameterChecked(int state) {
         }
     } else if (state == Qt::Unchecked) {
         if (m_parameterGraphicsWidgets.contains(parameterName)) {
-            auto* widget = m_parameterGraphicsWidgets.take(parameterName);
-            m_parametersScene->removeItem(widget);
-            delete widget;
+            auto* proxyWidget = m_parameterGraphicsWidgets.take(parameterName);
+            m_parametersScene->removeItem(proxyWidget);
+            delete proxyWidget; // Удаляем proxyWidget, который также удалит widget
+
+            // Логируем удаление виджета
+            qDebug() << "Removed widget for parameter:" << parameterName;
+
             rearrangeParameterGraphicsWidgets();
         }
     }
@@ -1177,17 +1211,25 @@ QColor LoggerWindow::getNextColor()
     return color;
 }
 
-
-void LoggerWindow::onParameterUpdated(const ParameterDefinition& param, const QString& value, const QString& units)
-{
+void LoggerWindow::onParameterUpdated(const ParameterDefinition& param, const QString& value, const QString& units) {
+    // Ищем виджет по имени параметра
     auto it = m_parameterGraphicsWidgets.find(param.name);
     if (it != m_parameterGraphicsWidgets.end()) {
-        bool ok;
-        double numericValue = value.toDouble(&ok);
-        if (ok) {
-            it.value()->updateValue(numericValue);
+        // Получаем указатель на QGraphicsProxyWidget
+        QGraphicsProxyWidget* proxyWidget = it.value();
+
+        // Получаем указатель на ParameterGraphicsWidget
+        ParameterGraphicsWidget* widget = qobject_cast<ParameterGraphicsWidget*>(proxyWidget->widget());
+        if (widget) {
+            bool ok;
+            double numericValue = value.toDouble(&ok);
+            if (ok) {
+                widget->updateValue(numericValue);
+            } else {
+                qDebug() << "Error converting value to double:" << value;
+            }
         } else {
-            qDebug() << "Error converting value to double:" << value;
+            qDebug() << "Widget is not of type ParameterGraphicsWidget for parameter:" << param.name;
         }
     } else {
         qDebug() << "Parameter not found in graphics widgets:" << param.name;
@@ -1509,24 +1551,35 @@ void LoggerWindow::updateParameter(const ParameterDefinition& param, const QStri
 
     auto widgetIt = m_parameterGraphicsWidgets.find(param.name);
     if (widgetIt != m_parameterGraphicsWidgets.end()) {
-        bool ok;
-        double numericValue = value.toDouble(&ok);
-        if (ok) {
-            widgetIt.value()->updateValue(numericValue);
+        QGraphicsProxyWidget* proxyWidget = widgetIt.value();
+        ParameterGraphicsWidget* widget = qobject_cast<ParameterGraphicsWidget*>(proxyWidget->widget());
 
-            // Динамическое обновление min/max
-            double currentMin = widgetIt.value()->getMinValue();
-            double currentMax = widgetIt.value()->getMaxValue();
+        if (widget) {
+            bool ok;
+            double numericValue = value.toDouble(&ok);
+            if (ok) {
+                widget->updateValue(numericValue);
 
-            if (numericValue < currentMin) {
-                currentMin = numericValue;
+                // Динамическое обновление min/max
+                double currentMin = widget->getMinValue();
+                double currentMax = widget->getMaxValue();
+
+                if (numericValue < currentMin) {
+                    currentMin = numericValue;
+                }
+                if (numericValue > currentMax) {
+                    currentMax = numericValue;
+                }
+
+                widget->setMinMax(currentMin, currentMax);
+            } else {
+                qDebug() << "Error converting value to double:" << value;
             }
-            if (numericValue > currentMax) {
-                currentMax = numericValue;
-            }
-
-            widgetIt.value()->setMinMax(currentMin, currentMax);
+        } else {
+            qDebug() << "Widget is not of type ParameterGraphicsWidget for parameter:" << param.name;
         }
+    } else {
+        qDebug() << "Parameter not found in graphics widgets:" << param.name;
     }
 
     // Отправляем сигнал для обновления отдельных окон
@@ -1821,9 +1874,6 @@ void LoggerWindow::updateParametersTree() {
     ui->parametersTree->resizeColumnToContents(2); // Units
 }
 
-
-
-
 void LoggerWindow::onParameterUnitsChanged(int index) {
     // Получаем выбранный item в дереве
     QTreeWidgetItem* paramItem = ui->parametersTree->currentItem();
@@ -1852,7 +1902,6 @@ void LoggerWindow::onParameterUnitsChanged(int index) {
     }
 }
 
-
 QString LoggerWindow::formatValue(double value, const QString& format)
 {
     if (format.isEmpty()) {
@@ -1870,36 +1919,51 @@ QString LoggerWindow::formatValue(double value, const QString& format)
     return QString::number(value);
 }
 
-void LoggerWindow::onWindowSizeButtonClicked()
-{
-    // Обновляем сцену после изменения размера
-    m_parametersScene->update();
-}
+void LoggerWindow::onWindowSizeButtonClicked() {
+    static WindowStyleType currentStyle = WindowStyleType::Minimal;
 
-void LoggerWindow::createParameterGraphicsWidgets() {
-    for (const auto& param : m_selectedParameters) {
-        auto* widget = new ParameterGraphicsWidget(param.getName(), param.getUnits(), param.getMinValue(), param.getMaxValue(), param.getInitialValue());
-        m_parametersScene->addItem(widget);
-        m_parameterGraphicsWidgets[param.getName()] = widget; // Сохранение виджета для дальнейшего обновления
+    // Циклический переход между стилями Minimal -> Standard -> Full -> Minimal
+    switch (currentStyle) {
+    case WindowStyleType::Minimal:
+        currentStyle = WindowStyleType::Standard;
+        break;
+    case WindowStyleType::Standard:
+        currentStyle = WindowStyleType::Full;
+        break;
+    case WindowStyleType::Full:
+        currentStyle = WindowStyleType::Minimal;
+        break;
     }
-}
 
-void LoggerWindow::updateParameterGraphicsWidgets() {
-    for (const auto& param : m_selectedParameters) {
-        if (m_parameterGraphicsWidgets.contains(param.getName())) {
-            // Обновление виджета
-            m_parameterGraphicsWidgets[param.getName()]->updateValue(param.getCurrentValue());
+    // Применяем новый стиль ко всем параметрам
+    for (auto& pair : m_parameterGraphicsWidgets) {
+        QGraphicsProxyWidget* proxyWidget = pair;
+        if (proxyWidget) {
+            // Получаем виджет ParameterGraphicsWidget из QGraphicsProxyWidget
+            QWidget* widget = proxyWidget->widget();
+            if (auto* parameterWidget = qobject_cast<ParameterGraphicsWidget*>(widget)) {
+                // Если приведение успешно, вызываем applyStyle
+                parameterWidget->applyStyle(currentStyle);
+            } else {
+                qDebug() << "Warning: Failed to cast to ParameterGraphicsWidget.";
+            }
+        } else {
+            qDebug() << "Warning: proxyWidget is nullptr.";
         }
     }
 }
 
-void LoggerWindow::rearrangeParameterGraphicsWidgets() {
-    // Логика для перераспределения графических виджетов
-    // Например, вы можете установить их в определённые позиции или изменить их размер
-    int yOffset = 0;
-    for (auto* widget : m_parameterGraphicsWidgets) {
-        widget->setPos(0, yOffset); // Установите позицию виджета
-        yOffset += widget->boundingRect().height() + 10; // Отступ между виджетами
+
+
+
+
+void LoggerWindow::checkWidgetHeight(QGraphicsWidget* widget) {
+    if (widget) {
+        double height = widget->boundingRect().height();
+        if (height <= 0) {
+            qWarning() << "Widget height is zero or negative, check the widget:" << widget;
+        } else {
+            qDebug() << "Widget height is valid:" << height;
+        }
     }
 }
-

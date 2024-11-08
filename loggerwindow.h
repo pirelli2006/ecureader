@@ -67,7 +67,6 @@ private slots:
     void onAdapterChanged(const QString& adapter); // С лот, вызываемый при изменении адаптера.
     void onDisplayModeChanged(int index); // Слот, вызываемый при изменении режима отображения.
     void onConnectionEstablished(); // Слот, вызываемый при установлении соединения.
-    void onParameterItemChanged(QTreeWidgetItem* item, int column); // Слот, вызываемый при изменении элемента параметра.
     void onSaveLogTriggered(); // Слот, вызываемый при сохранении лога.
     void onPreferencesTriggered(); // Слот, вызываемый при открытии настроек.
     void onFileLogButtonClicked(); // Слот, вызываемый при нажатии кнопки записи в файл.
@@ -98,6 +97,8 @@ private:
     bool openDiagnosticSession(); // Метод для открытия диагностической сессии.
     void setupRequestQueue(); // Метод для настройки очереди запросов.
 
+
+
     void sendNextRequest(); // Метод для отправки следующего запроса.
     QString getErrorText(long errorCode); // Метод для получения текста ошибки.
     void appendToLog(const QString& message); // Метод для добавления сообщения в лог.
@@ -113,7 +114,7 @@ private:
     //QMap<QString, ParameterWidget*> m_parameterWidgets; // Карта виджетов параметров.
     //QMap<QString, ParameterWidget*> m_parameterWindows; // Карта для хранения окон параметров
     QGraphicsScene* m_parametersScene;
-    QMap<QString, ParameterGraphicsWidget*> m_parameterGraphicsWidgets; // Карта виджетов параметров
+    QMap<QString, QGraphicsProxyWidget*> m_parameterGraphicsWidgets; // Карта виджетов параметров
     QVector<QCPGraph*> m_graphData; // Данные для графиков.
     void clearCurrentData(); // Метод для очистки текущих данных.
     QColor getNextColor(); // Метод для получения следующего цвета для графика.
@@ -144,6 +145,11 @@ private:
     void createParameterGraphicsWidgets(); // Метод для создания графических виджетов параметров
     void updateParameterGraphicsWidgets(); // Метод для обновления графических виджетов параметров
     void rearrangeParameterGraphicsWidgets();
+    void checkWidgetHeight(QGraphicsWidget* widget);
+    void removeParameterWidget(const QString& parameterName);
+    void addParameterWidget(const QString& parameterName, QTreeWidgetItem* item);
+    void updateSceneSize();
+    QGraphicsView* m_parametersView;
 
 
     struct CategoryParameters { // Структура для хранения параметров категории.
